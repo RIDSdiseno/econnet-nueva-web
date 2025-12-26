@@ -104,18 +104,59 @@ const CartPage = () => {
               </div>
             ))}
 
-            <div className="flex flex-col gap-4 rounded-3xl border border-[#F0E0E0] bg-white/80 p-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1 text-sm text-slate-600">
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Total neto</p>
-                <p className="text-2xl font-semibold text-[#B01010]">{formatCurrency(totalNet)}</p>
+            <div className="flex flex-col gap-6 rounded-3xl border border-[#F0E0E0] bg-white/80 p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1 text-sm text-slate-600">
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Total neto</p>
+                  <p className="text-2xl font-semibold text-[#B01010]">{formatCurrency(totalNet)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearCart}
+                  className="rounded-full border border-[#F0E0E0] px-6 py-3 text-sm font-semibold text-[#B01010] transition hover:bg-[#F7EAEA]"
+                >
+                  Vaciar carrito
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={clearCart}
-                className="rounded-full border border-[#F0E0E0] px-6 py-3 text-sm font-semibold text-[#B01010] transition hover:bg-[#F7EAEA]"
-              >
-                Vaciar carrito
-              </button>
+
+              <div className="flex flex-col gap-3 border-t border-[#F0E0E0] pt-4">
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Pagar con</p>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    aria-label="Pagar con Apple Pay"
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-black px-6 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                      <path d="M16.365 1.43c0 1.14-.43 2.22-1.2 3.03-.87.9-2.31 1.6-3.63 1.49-.14-1.15.36-2.31 1.16-3.15.84-.9 2.28-1.58 3.67-1.37z" />
+                      <path d="M12.12 5.05c1.74 0 2.5-.93 4.67-.93 2.17 0 3.26 1.2 3.26 1.2-1.24.76-2.1 2.18-2.1 3.86 0 2.1 1.5 3.18 2.1 3.54-.42 1.2-1.3 2.42-2.24 3.34-.86.84-1.74 1.42-3.03 1.42-1.27 0-1.68-.38-3.17-.38-1.5 0-2.02.4-3.18.4-1.2 0-2.06-.63-2.92-1.55-1.88-2-3.32-5.68-1.37-8.2.96-1.22 2.7-2.02 4.58-2.02 1.16 0 2.13.4 2.9.4z" />
+                    </svg>
+                    Apple Pay
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Pagar con Transbank"
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#B01010] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(176,16,16,0.25)] transition hover:bg-[#D03030]"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    >
+                      <rect x="3" y="5" width="18" height="14" rx="2" />
+                      <path d="M3 9h18" />
+                      <path d="M7 15h6" />
+                    </svg>
+                    Transbank
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Metodo de pago solo referencial. Integracion real pendiente.
+                </p>
+              </div>
             </div>
           </div>
         )}
