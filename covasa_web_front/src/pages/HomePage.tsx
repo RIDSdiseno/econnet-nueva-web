@@ -124,7 +124,7 @@ const HomePage = () => {
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link
-                  to="/contact"
+                  to="/cotizar"
                   className="rounded-full bg-[#B01010] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(176,16,16,0.3)] transition hover:bg-[#D03030]"
                 >
                   Cotizar proyecto
@@ -278,7 +278,7 @@ const HomePage = () => {
                 Levantamos el listado completo de materiales, programamos entregas por etapa y cuidamos tu presupuesto.
               </p>
               <Link
-                to="/contact"
+                to="/cotizar"
                 className="mt-6 inline-flex rounded-full bg-[#B01010] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#D03030]"
               >
                 Hablar con ventas

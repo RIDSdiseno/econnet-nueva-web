@@ -10,6 +10,14 @@
   --sun: #e04040;
 }
 
+html {
+  font-size: 100%;
+}
+
+html.font-scale-lg {
+  font-size: 112.5%;
+}
+
 body {
   min-height: 100vh;
   margin: 0;

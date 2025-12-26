@@ -4,25 +4,31 @@ import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
 import ProductsPage from './pages/ProductsPage';
 import ContactPage from './pages/ContactPage';
+import CartPage from './pages/CartPage';
+import QuotePage from './pages/QuotePage';
+import { CartProvider } from './context/CartContext';
 import './App.css';
 
 function App() {
   return (
-    <Router>
-      <div className="app-shell flex flex-col min-h-screen">
-        <Header />
-        <main className="flex-grow">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/cotizar" element={<ContactPage />} />
-            {/* Add other routes here later */}
-          </Routes>
-        </main>
-        <Footer />
-      </div>
-    </Router>
+    <CartProvider>
+      <Router>
+        <div className="app-shell flex flex-col min-h-screen">
+          <Header />
+          <main className="flex-grow">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/cotizar" element={<QuotePage />} />
+              <Route path="/cart" element={<CartPage />} />
+              {/* Add other routes here later */}
+            </Routes>
+          </main>
+          <Footer />
+        </div>
+      </Router>
+    </CartProvider>
   );
 }
 

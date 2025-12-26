@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { Product } from '../data/products';
+import { useCart } from '../context/CartContext';
 
 interface ProductCardProps {
   product: Product;
@@ -69,6 +70,21 @@ const palettes = [
 const ProductCard = ({ product }: ProductCardProps) => {
   const palette = palettes[(product.id - 1) % palettes.length];
   const icon = categoryIcons[product.category] ?? defaultIcon;
+  const { addItems } = useCart();
+
+  const handleAddToCart = () => {
+    addItems([
+      {
+        productId: product.id,
+        name: product.name,
+        description: product.description,
+        unit: product.unit,
+        unitPrice: product.price,
+        quantity: 1,
+        image: product.image || undefined,
+      },
+    ]);
+  };
 
   return (
     <article className="group flex h-full flex-col rounded-3xl border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_50px_rgba(15,23,32,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(15,23,32,0.12)]">
@@ -99,7 +115,11 @@ const ProductCard = ({ product }: ProductCardProps) => {
           <span className="text-xl font-semibold text-slate-900">
             CLP {product.price.toLocaleString('es-CL')}
           </span>
-          <button className="rounded-full bg-[#B01010] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#D03030]">
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            className="rounded-full bg-[#B01010] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#D03030]"
+          >
             Agregar
           </button>
         </div>
