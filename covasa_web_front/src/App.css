@@ -50,9 +50,29 @@
   animation: floatSlow 6s ease-in-out infinite;
 }
 
+.page-transition {
+  animation: pageFade 0.45s ease both;
+}
+
+.card-reveal {
+  animation: cardIn 0.5s ease both;
+}
+
+.modal-backdrop {
+  animation: fadeIn 0.2s ease both;
+}
+
+.modal-panel {
+  animation: modalIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fade-up,
-  .float-slow {
+  .float-slow,
+  .page-transition,
+  .card-reveal,
+  .modal-backdrop,
+  .modal-panel {
     animation: none;
   }
 }
@@ -65,6 +85,48 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes pageFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 

@@ -27,6 +27,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-image:
+    url("/fondo/fondo_covasa.png"),
     radial-gradient(circle at top right, rgba(224, 64, 64, 0.08), transparent 45%),
     radial-gradient(circle at 10% 20%, rgba(176, 16, 16, 0.08), transparent 40%);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }

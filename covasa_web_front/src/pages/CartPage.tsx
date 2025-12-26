@@ -6,6 +6,9 @@ const formatCurrency = (value: number) => `CLP ${value.toLocaleString('es-CL')}`
 const CartPage = () => {
   const { items, totalQuantity, updateQuantity, removeItem, clearCart } = useCart();
   const totalNet = items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+  const taxRate = 0.19;
+  const ivaAmount = Math.round(totalNet * taxRate);
+  const totalWithIva = totalNet + ivaAmount;
 
   return (
     <div className="space-y-10 pb-20">
@@ -106,9 +109,19 @@ const CartPage = () => {
 
             <div className="flex flex-col gap-6 rounded-3xl border border-[#F0E0E0] bg-white/80 p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-1 text-sm text-slate-600">
-                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Total neto</p>
-                  <p className="text-2xl font-semibold text-[#B01010]">{formatCurrency(totalNet)}</p>
+                <div className="space-y-3 text-sm text-slate-600">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Subtotal neto</p>
+                    <p className="text-lg font-semibold text-slate-900">{formatCurrency(totalNet)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.25em] text-slate-500">IVA 19%</p>
+                    <p className="text-lg font-semibold text-slate-900">{formatCurrency(ivaAmount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Total con IVA</p>
+                    <p className="text-2xl font-semibold text-[#B01010]">{formatCurrency(totalWithIva)}</p>
+                  </div>
                 </div>
                 <button
                   type="button"

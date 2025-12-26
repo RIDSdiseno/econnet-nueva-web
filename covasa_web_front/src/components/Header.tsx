@@ -1,11 +1,28 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+﻿import { useEffect, useState } from 'react';
+import { Link, NavLink } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { totalQuantity } = useCart();
   const [isLargeText, setIsLargeText] = useState(false);
+  const desktopNavClass = ({ isActive }: { isActive: boolean }) =>
+    `rounded-full px-3 py-1 transition ${
+      isActive ? 'bg-[#F7EAEA] text-[#B01010]' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+    }`;
+  const mobileNavClass = ({ isActive }: { isActive: boolean }) =>
+    `rounded-lg px-3 py-2 transition ${
+      isActive ? 'bg-[#F7EAEA] text-[#B01010]' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+    }`;
+  const cartClass = ({ isActive }: { isActive: boolean }) =>
+    `relative flex h-11 w-11 items-center justify-center rounded-full transition ${
+      isActive ? 'bg-[#B01010] ring-2 ring-[#E04040]/60' : 'bg-[#1b0b0b] hover:bg-[#2a0d0d]'
+    }`;
+  const ctaClass = ({ isActive }: { isActive: boolean }) =>
+    `rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[0_12px_24px_rgba(176,16,16,0.25)] transition ${
+      isActive ? 'bg-[#D03030]' : 'bg-[#B01010] hover:bg-[#D03030]'
+    }`;
+  const mobileCtaClass = ({ isActive }: { isActive: boolean }) => `flex-1 text-center ${ctaClass({ isActive })}`;
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -43,7 +60,7 @@ const Header = () => {
                 <span className="h-2 w-2 rounded-full bg-[#E04040]"></span>
                 Despacho 24-72h en RM
               </span>
-              <span className="hidden md:inline">Atención especializada para obras</span>
+              <span className="hidden md:inline">AtenciÃ³n especializada para obras</span>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -51,7 +68,7 @@ const Header = () => {
                 onClick={() => setIsLargeText((prev) => !prev)}
                 className="rounded-full border border-white/20 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white/80 transition hover:bg-white/10"
                 aria-pressed={isLargeText}
-                aria-label="Cambiar tamaño de letra"
+                aria-label="Cambiar tamaÃ±o de letra"
               >
                 {isLargeText ? 'A-' : 'A+'}
               </button>
@@ -118,17 +135,14 @@ const Header = () => {
       <div className="bg-white/90 backdrop-blur border-b border-slate-200">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between gap-4 py-4">
-            <Link to="/" className="flex items-center gap-3">
-              <img
-                src="/img/logo_covasa_redondeado.jpg"
-                alt="COVASA"
-                className="h-12 w-12 rounded-full border border-[#F0E0E0] object-cover shadow-sm"
-              />
-              <div className="leading-tight">
-                <span className="font-display text-3xl text-slate-900">COVASA</span>
-                <span className="block text-[0.6rem] uppercase tracking-[0.32em] text-[#B01010]">
-                  Materiales y ferretería
-                </span>
+            <Link to="/" className="flex items-center gap-3" aria-label="COVASA">
+              <div className="flex h-12 w-20 items-center justify-center overflow-hidden rounded-full border border-[#F0E0E0] bg-white shadow-sm">
+                <img
+                  src="/img/logo_covasa_actua.png"
+                  alt="COVASA"
+                  className="h-full w-full object-cover"
+                  style={{ objectPosition: 'center 70%' }}
+                />
               </div>
             </Link>
 
@@ -151,25 +165,19 @@ const Header = () => {
                   <path d="M20 20l-3.5-3.5" />
                 </svg>
               </div>
-              <Link
-                to="/cotizar"
-                className="rounded-full bg-[#B01010] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[0_12px_24px_rgba(176,16,16,0.25)] transition hover:bg-[#D03030]"
-              >
+              <NavLink to="/cotizar" className={ctaClass}>
                 Cotizar
-              </Link>
+              </NavLink>
             </div>
 
             <div className="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-600">
-              <Link to="/products" className="transition hover:text-slate-900">
+              <NavLink to="/products" className={desktopNavClass}>
                 Productos
-              </Link>
-              <Link to="/contact" className="transition hover:text-slate-900">
+              </NavLink>
+              <NavLink to="/contact" className={desktopNavClass}>
                 Contacto
-              </Link>
-              <Link
-                to="/cart"
-                className="relative flex h-11 w-11 items-center justify-center rounded-full bg-[#1b0b0b] text-white transition hover:bg-[#2a0d0d]"
-              >
+              </NavLink>
+              <NavLink to="/cart" className={cartClass}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className="h-5 w-5"
@@ -189,7 +197,7 @@ const Header = () => {
                     {totalQuantity}
                   </span>
                 )}
-              </Link>
+              </NavLink>
             </div>
 
             <button
@@ -210,15 +218,15 @@ const Header = () => {
           {isMenuOpen && (
             <div className="lg:hidden pb-6">
               <nav className="grid gap-2 rounded-2xl border border-slate-200 bg-white/90 p-4 text-sm text-slate-600 shadow-sm">
-                <Link to="/" className="rounded-lg px-3 py-2 transition hover:bg-slate-100 hover:text-slate-900">
+                <NavLink to="/" end className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
                   Inicio
-                </Link>
-                <Link to="/products" className="rounded-lg px-3 py-2 transition hover:bg-slate-100 hover:text-slate-900">
+                </NavLink>
+                <NavLink to="/products" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
                   Productos
-                </Link>
-                <Link to="/contact" className="rounded-lg px-3 py-2 transition hover:bg-slate-100 hover:text-slate-900">
+                </NavLink>
+                <NavLink to="/contact" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
                   Contacto
-                </Link>
+                </NavLink>
               </nav>
 
               <div className="mt-4">
@@ -230,16 +238,10 @@ const Header = () => {
               </div>
 
               <div className="mt-4 flex items-center gap-3">
-                <Link
-                  to="/cotizar"
-                  className="flex-1 rounded-full bg-[#B01010] px-5 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-[0_12px_24px_rgba(176,16,16,0.25)] transition hover:bg-[#D03030]"
-                >
+                <NavLink to="/cotizar" className={mobileCtaClass} onClick={() => setIsMenuOpen(false)}>
                   Cotizar
-                </Link>
-                <Link
-                  to="/cart"
-                  className="relative flex h-11 w-11 items-center justify-center rounded-full bg-[#1b0b0b] text-white transition hover:bg-[#2a0d0d]"
-                >
+                </NavLink>
+                <NavLink to="/cart" className={cartClass} onClick={() => setIsMenuOpen(false)}>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-5 w-5"
@@ -259,7 +261,7 @@ const Header = () => {
                       {totalQuantity}
                     </span>
                   )}
-                </Link>
+                </NavLink>
               </div>
             </div>
           )}

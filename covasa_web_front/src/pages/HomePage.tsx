@@ -300,24 +300,27 @@ const HomePage = () => {
       </section>
 
       <section className="container mx-auto px-4">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Marcas</p>
-            <h2 className="font-display text-3xl text-slate-900">Aliados que garantizan calidad</h2>
-          </div>
-          <Link to="/products" className="text-sm font-semibold text-[#B01010] transition hover:text-[#D03030]">
-            Ver proveedores
-          </Link>
-        </div>
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          {brands.map((brand) => (
-            <div
-              key={brand}
-              className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white/80 px-4 py-6 text-xs uppercase tracking-[0.3em] text-slate-500"
-            >
-              {brand}
+        <div className="relative overflow-hidden rounded-3xl bg-[#1b0b0b] p-8 text-white lg:p-12">
+          <div className="absolute inset-0 hero-grid opacity-10"></div>
+          <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.32em] text-[#E04040]">Marcas</p>
+              <h2 className="font-display text-3xl text-white">Aliados que garantizan calidad</h2>
             </div>
-          ))}
+            <Link to="/products" className="text-sm font-semibold text-[#E04040] transition hover:text-[#FF6B6B]">
+              Ver proveedores
+            </Link>
+          </div>
+          <div className="relative mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            {brands.map((brand) => (
+              <div
+                key={brand}
+                className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/10 px-4 py-6 text-xs uppercase tracking-[0.3em] text-white"
+              >
+                {brand}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
     </div>
