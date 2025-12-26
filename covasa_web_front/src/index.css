@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --ink: #1f0b0b;
+  --steel: #2a0d0d;
+  --sand: #f7f3f3;
+  --clay: #c02020;
+  --clay-deep: #b01010;
+  --sun: #e04040;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background-color: var(--sand);
+  color: var(--ink);
+  font-family: "Sora", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-image:
+    radial-gradient(circle at top right, rgba(224, 64, 64, 0.08), transparent 45%),
+    radial-gradient(circle at 10% 20%, rgba(176, 16, 16, 0.08), transparent 40%);
+}
