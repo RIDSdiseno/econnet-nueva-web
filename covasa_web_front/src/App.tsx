@@ -6,7 +6,9 @@ import ProductsPage from './pages/ProductsPage';
 import ContactPage from './pages/ContactPage';
 import CartPage from './pages/CartPage';
 import QuotePage from './pages/QuotePage';
+import LoginPage from './pages/LoginPage';
 import { CartProvider } from './context/CartContext';
+import { AuthProvider } from './context/AuthContext';
 import './App.css';
 
 const AppLayout = () => {
@@ -22,6 +24,7 @@ const AppLayout = () => {
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/cotizar" element={<QuotePage />} />
+            <Route path="/login" element={<LoginPage />} />
             <Route path="/cart" element={<CartPage />} />
             {/* Add other routes here later */}
           </Routes>
@@ -34,11 +37,13 @@ const AppLayout = () => {
 
 function App() {
   return (
-    <CartProvider>
-      <Router>
-        <AppLayout />
-      </Router>
-    </CartProvider>
+    <AuthProvider>
+      <CartProvider>
+        <Router>
+          <AppLayout />
+        </Router>
+      </CartProvider>
+    </AuthProvider>
   );
 }
 

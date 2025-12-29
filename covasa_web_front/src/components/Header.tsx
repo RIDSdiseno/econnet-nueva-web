@@ -1,10 +1,12 @@
 ﻿import { useEffect, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { totalQuantity } = useCart();
+  const { user, isAuthenticated, logout } = useAuth();
   const [isLargeText, setIsLargeText] = useState(false);
   const desktopNavClass = ({ isActive }: { isActive: boolean }) =>
     `rounded-full px-3 py-1 transition ${
@@ -23,6 +25,11 @@ const Header = () => {
       isActive ? 'bg-[#D03030]' : 'bg-[#B01010] hover:bg-[#D03030]'
     }`;
   const mobileCtaClass = ({ isActive }: { isActive: boolean }) => `flex-1 text-center ${ctaClass({ isActive })}`;
+  const displayName = user?.name ?? 'Usuario';
+  const handleLogout = () => {
+    logout();
+    setIsMenuOpen(false);
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -170,13 +177,37 @@ const Header = () => {
               </NavLink>
             </div>
 
-            <div className="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-600">
+            <div className="hidden lg:flex items-center gap-4 text-sm font-medium text-slate-600">
               <NavLink to="/products" className={desktopNavClass}>
                 Productos
               </NavLink>
               <NavLink to="/contact" className={desktopNavClass}>
                 Contacto
               </NavLink>
+              {isAuthenticated ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-sm text-slate-700 shadow-sm">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#B01010] text-white">
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 20c2-3 5-4 8-4s6 1 8 4" />
+                      </svg>
+                    </span>
+                    <span className="max-w-[140px] truncate font-semibold">{displayName}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="rounded-full border border-[#F0E0E0] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#F7EAEA]"
+                  >
+                    Cerrar sesion
+                  </button>
+                </div>
+              ) : (
+                <NavLink to="/login" className={desktopNavClass}>
+                  Iniciar sesion
+                </NavLink>
+              )}
               <NavLink to="/cart" className={cartClass}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -227,7 +258,36 @@ const Header = () => {
                 <NavLink to="/contact" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
                   Contacto
                 </NavLink>
+                {!isAuthenticated && (
+                  <NavLink to="/login" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
+                    Iniciar sesion
+                  </NavLink>
+                )}
               </nav>
+
+              {isAuthenticated && (
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#B01010] text-white">
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 20c2-3 5-4 8-4s6 1 8 4" />
+                      </svg>
+                    </span>
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Usuario</p>
+                      <p className="text-sm font-semibold text-slate-900">{displayName}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="mt-4 w-full rounded-full border border-[#F0E0E0] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#F7EAEA]"
+                  >
+                    Cerrar sesion
+                  </button>
+                </div>
+              )}
 
               <div className="mt-4">
                 <input
