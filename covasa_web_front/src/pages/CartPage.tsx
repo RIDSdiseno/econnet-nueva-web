@@ -1,14 +1,23 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 const formatCurrency = (value: number) => `CLP ${value.toLocaleString('es-CL')}`;
 
 const CartPage = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const { items, totalQuantity, updateQuantity, removeItem, clearCart } = useCart();
   const totalNet = items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
   const taxRate = 0.19;
   const ivaAmount = Math.round(totalNet * taxRate);
   const totalWithIva = totalNet + ivaAmount;
+  const handlePaymentClick = () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+  };
 
   return (
     <div className="space-y-10 pb-20">
@@ -138,6 +147,7 @@ const CartPage = () => {
                   <button
                     type="button"
                     aria-label="Pagar con Apple Pay"
+                    onClick={handlePaymentClick}
                     className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-black px-6 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800"
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
@@ -149,6 +159,7 @@ const CartPage = () => {
                   <button
                     type="button"
                     aria-label="Pagar con Transbank"
+                    onClick={handlePaymentClick}
                     className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#B01010] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(176,16,16,0.25)] transition hover:bg-[#D03030]"
                   >
                     <svg

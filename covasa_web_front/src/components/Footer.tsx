@@ -7,12 +7,11 @@ const Footer = () => {
         <div className="grid gap-10 md:grid-cols-4">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-16 items-center justify-center overflow-hidden rounded-full border border-[#2a0d0d] bg-white/90 shadow-sm">
+              <div className="flex h-20 w-40 items-center justify-center overflow-hidden rounded-xl border border-[#2a0d0d] bg-white/90 p-2 shadow-sm sm:h-24 sm:w-48">
                 <img
-                  src="/img/logo_covasa_actua.png"
+                  src="/img/3.png"
                   alt="COVASA"
-                  className="h-full w-full object-cover"
-                  style={{ objectPosition: 'center 70%' }}
+                  className="h-full w-full object-contain"
                 />
               </div>
             </div>

@@ -167,14 +167,17 @@ const HomePage = () => {
       </section>
 
       <section className="container mx-auto px-4">
-        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Categorías</p>
-            <h2 className="font-display text-4xl text-slate-900">Abastecimiento completo para la obra</h2>
+        <div className="relative overflow-hidden rounded-3xl bg-[#1b0b0b] p-6 text-white shadow-[0_20px_50px_rgba(10,0,0,0.28)] md:p-8">
+          <div className="absolute inset-0 hero-grid opacity-10"></div>
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.32em] text-[#E04040]">Categorías</p>
+              <h2 className="font-display text-4xl text-white">Abastecimiento completo para la obra</h2>
+            </div>
+            <Link to="/products" className="text-sm font-semibold text-[#E04040] transition hover:text-[#FF6B6B]">
+              Explorar catálogo completo
+            </Link>
           </div>
-          <Link to="/products" className="text-sm font-semibold text-[#B01010] transition hover:text-[#D03030]">
-            Explorar catálogo completo
-          </Link>
         </div>
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {categories.map((category, index) => (
@@ -251,15 +254,18 @@ const HomePage = () => {
       </section>
 
       <section className="container mx-auto px-4">
-        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Destacados</p>
-            <h2 className="font-display text-4xl text-slate-900">Productos con entrega inmediata</h2>
-          </div>
-          <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.2em] text-slate-500">
-            <span className="rounded-full border border-slate-200 px-3 py-1">Más vendidos</span>
-            <span className="rounded-full border border-slate-200 px-3 py-1">Obra gruesa</span>
-            <span className="rounded-full border border-slate-200 px-3 py-1">Terminaciones</span>
+        <div className="relative overflow-hidden rounded-3xl bg-[#1b0b0b] p-6 text-white shadow-[0_20px_50px_rgba(10,0,0,0.28)] md:p-8">
+          <div className="absolute inset-0 hero-grid opacity-10"></div>
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.32em] text-[#E04040]">Destacados</p>
+              <h2 className="font-display text-4xl text-white">Productos con entrega inmediata</h2>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.2em] text-white/70">
+              <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1">Más vendidos</span>
+              <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1">Obra gruesa</span>
+              <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1">Terminaciones</span>
+            </div>
           </div>
         </div>
         <div className="mt-8">

@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,6 +8,7 @@ const Header = () => {
   const { totalQuantity } = useCart();
   const { user, isAuthenticated, logout } = useAuth();
   const [isLargeText, setIsLargeText] = useState(false);
+  const navigate = useNavigate();
   const desktopNavClass = ({ isActive }: { isActive: boolean }) =>
     `rounded-full px-3 py-1 transition ${
       isActive ? 'bg-[#F7EAEA] text-[#B01010]' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -29,6 +30,7 @@ const Header = () => {
   const handleLogout = () => {
     logout();
     setIsMenuOpen(false);
+    navigate('/login', { replace: true });
   };
 
   useEffect(() => {
@@ -143,9 +145,9 @@ const Header = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between gap-4 py-4">
             <Link to="/" className="flex items-center gap-3" aria-label="COVASA">
-              <div className="flex h-12 w-20 items-center justify-center overflow-hidden rounded-full border border-[#F0E0E0] bg-white shadow-sm">
+              <div className="flex h-14 w-28 items-center justify-center overflow-hidden rounded-xl border border-[#F0E0E0] bg-white shadow-sm sm:h-16 sm:w-32">
                 <img
-                  src="/img/logo_covasa_actua.png"
+                  src="/img/3.png"
                   alt="COVASA"
                   className="h-full w-full object-cover"
                   style={{ objectPosition: 'center 70%' }}
