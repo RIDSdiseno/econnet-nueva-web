@@ -1,17 +1,19 @@
 export interface Product {
-  id: number;
+  id: string;
   name: string;
   price: number;
   description: string;
-  images: string[];
-  image: string;
+  images?: string[];
+  image?: string;
   unit: string;
   category: string;
+  sku?: string;
+  stockDisponible?: number;
 }
 
 export const products: Product[] = [
   {
-    id: 1,
+    id: '1',
     name: 'Cemento Portland 25 kg',
     price: 7800,
     description: 'Resistencia confiable para fundaciones, radieres y losas.',
@@ -21,7 +23,7 @@ export const products: Product[] = [
     category: 'Obra gruesa',
   },
   {
-    id: 2,
+    id: '2',
     name: 'Ladrillo Fiscal',
     price: 300,
     description: 'Ladrillo de arcilla cocida para muros y cierres perimetrales.',
@@ -31,7 +33,7 @@ export const products: Product[] = [
     category: 'Obra gruesa',
   },
   {
-    id: 3,
+    id: '3',
     name: 'Arena Gruesa',
     price: 25000,
     description: 'Carga de 1 m3 para mezclas de hormigon y mortero.',
@@ -41,7 +43,7 @@ export const products: Product[] = [
     category: 'Aridos',
   },
   {
-    id: 4,
+    id: '4',
     name: 'Gravilla',
     price: 28000,
     description: 'Granulometria controlada para hormigones de alta resistencia.',
@@ -51,7 +53,7 @@ export const products: Product[] = [
     category: 'Aridos',
   },
   {
-    id: 5,
+    id: '5',
     name: 'Malla ACMA',
     price: 35000,
     description: 'Malla electrosoldada para refuerzo de losas y radieres.',
@@ -61,7 +63,7 @@ export const products: Product[] = [
     category: 'Fierro y mallas',
   },
   {
-    id: 6,
+    id: '6',
     name: 'Yeso-carton 10 mm',
     price: 8900,
     description: 'Plancha para tabiques interiores y cielos con terminacion lisa.',

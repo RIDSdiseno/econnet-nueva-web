@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Product } from '../data/products';
-import { products } from '../data/products';
+import { useProductos } from '../hooks/useProductos';
 import { useCart } from '../context/CartContext';
 import type { CartItem } from '../context/CartContext';
 
 type QuoteItem = {
   id: string;
-  productId: number;
+  productId: string;
   description: string;
   unit: string;
   quantity: number;
@@ -18,7 +18,7 @@ const formatCurrency = (value: number) => `CLP ${value.toLocaleString('es-CL')}`
 
 const createItem = (product?: Product): QuoteItem => ({
   id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-  productId: product?.id ?? 0,
+  productId: product?.id ?? '',
   description: product?.description ?? '',
   unit: product?.unit ?? '',
   quantity: 1,
@@ -26,22 +26,23 @@ const createItem = (product?: Product): QuoteItem => ({
 });
 
 const QuotePage = () => {
+  const { productos, cargando, error } = useProductos();
   const [submitted, setSubmitted] = useState(false);
   const [items, setItems] = useState<QuoteItem[]>([]);
-  const [selectedProductId, setSelectedProductId] = useState(0);
+  const [selectedProductId, setSelectedProductId] = useState('');
   const totalNet = items.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
   const { addItems } = useCart();
-  const canAddItem = selectedProductId > 0;
+  const canAddItem = Boolean(selectedProductId);
   const isSubmitDisabled = items.length === 0;
 
   const handleItemChange = (id: string, updates: Partial<QuoteItem>) => {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)));
   };
 
-  const handleProductChange = (id: string, productId: number) => {
-    const product = products.find((entry) => entry.id === productId);
+  const handleProductChange = (id: string, productId: string) => {
+    const product = productos.find((entry) => entry.id === productId);
     handleItemChange(id, {
-      productId: product?.id ?? 0,
+      productId: product?.id ?? '',
       description: product?.description ?? '',
       unit: product?.unit ?? '',
       unitPrice: product?.price ?? 0,
@@ -53,7 +54,7 @@ const QuotePage = () => {
       return;
     }
 
-    const product = products.find((entry) => entry.id === selectedProductId);
+    const product = productos.find((entry) => entry.id === selectedProductId);
     if (!product) {
       return;
     }
@@ -81,7 +82,7 @@ const QuotePage = () => {
     const cartItems: CartItem[] = items
       .filter((item) => item.productId)
       .map((item) => {
-        const product = products.find((entry) => entry.id === item.productId);
+        const product = productos.find((entry) => entry.id === item.productId);
         return {
           productId: item.productId,
           name: product?.name ?? 'Producto',
@@ -96,7 +97,7 @@ const QuotePage = () => {
     addItems(cartItems);
     setSubmitted(true);
     setItems([]);
-    setSelectedProductId(0);
+    setSelectedProductId('');
     event.currentTarget.reset();
   };
 
@@ -136,6 +137,12 @@ const QuotePage = () => {
             {submitted && (
               <div className="rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-3 text-sm text-[#B01010]">
                 Solicitud enviada. Te contactaremos pronto.
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-3 text-sm text-[#B01010]">
+                {error}
               </div>
             )}
 
@@ -231,11 +238,12 @@ const QuotePage = () => {
                   Producto a agregar
                   <select
                     value={selectedProductId || ''}
-                    onChange={(event) => setSelectedProductId(Number(event.target.value))}
+                    onChange={(event) => setSelectedProductId(event.target.value)}
+                    disabled={cargando}
                     className="rounded-2xl border border-slate-200 bg-white w-full px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040]"
                   >
-                    <option value="">Selecciona un producto</option>
-                    {products.map((product) => (
+                    <option value="">{cargando ? 'Cargando catalogo...' : 'Selecciona un producto'}</option>
+                    {productos.map((product) => (
                       <option key={product.id} value={product.id}>
                         {product.name}
                       </option>
@@ -276,11 +284,11 @@ const QuotePage = () => {
                               name="item"
                               required
                               value={item.productId || ''}
-                              onChange={(event) => handleProductChange(item.id, Number(event.target.value))}
+                              onChange={(event) => handleProductChange(item.id, event.target.value)}
                               className="rounded-2xl border border-slate-200 bg-white w-full px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040]"
                             >
                               <option value="">Selecciona un producto</option>
-                              {products.map((product) => (
+                              {productos.map((product) => (
                                 <option key={product.id} value={product.id}>
                                   {product.name}
                                 </option>
@@ -354,7 +362,7 @@ const QuotePage = () => {
                 </>
               ) : (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-4 py-6 text-sm text-slate-600">
-                  Aun no agregas items. Selecciona un producto y usa “Agregar item”.
+                  Aun no agregas items. Selecciona un producto y usa "Agregar item".
                 </div>
               )}
 

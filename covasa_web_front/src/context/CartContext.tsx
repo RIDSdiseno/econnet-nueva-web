@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
 export type CartItem = {
-  productId: number;
+  productId: string;
   name: string;
   description: string;
   unit: string;
@@ -15,8 +15,8 @@ type CartContextValue = {
   items: CartItem[];
   totalQuantity: number;
   addItems: (items: CartItem[]) => void;
-  updateQuantity: (productId: number, quantity: number) => void;
-  removeItem: (productId: number) => void;
+  updateQuantity: (productId: string, quantity: number) => void;
+  removeItem: (productId: string) => void;
   clearCart: () => void;
 };
 
@@ -37,14 +37,27 @@ const readStorage = (): CartItem[] => {
     if (!Array.isArray(parsed)) {
       return [];
     }
-    return parsed.filter((item) => item && typeof item.productId === 'number');
+    return parsed
+      .map((item) => {
+        if (!item || typeof item !== 'object') {
+          return null;
+        }
+        const rawId = (item as { productId?: unknown }).productId;
+        const normalizedId =
+          typeof rawId === 'number' ? String(rawId) : typeof rawId === 'string' ? rawId.trim() : '';
+        if (!normalizedId) {
+          return null;
+        }
+        return { ...(item as CartItem), productId: normalizedId };
+      })
+      .filter((item): item is CartItem => Boolean(item));
   } catch {
     return [];
   }
 };
 
 const mergeItems = (current: CartItem[], incoming: CartItem[]) => {
-  const map = new Map<number, CartItem>();
+  const map = new Map<string, CartItem>();
   current.forEach((item) => map.set(item.productId, { ...item }));
 
   incoming.forEach((item) => {
@@ -87,7 +100,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setItems((prev) => mergeItems(prev, incoming));
   };
 
-  const updateQuantity = (productId: number, quantity: number) => {
+  const updateQuantity = (productId: string, quantity: number) => {
     setItems((prev) =>
       prev.map((item) =>
         item.productId === productId
@@ -97,7 +110,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
-  const removeItem = (productId: number) => {
+  const removeItem = (productId: string) => {
     setItems((prev) => prev.filter((item) => item.productId !== productId));
   };
 

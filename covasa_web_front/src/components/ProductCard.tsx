@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext';
 
 interface ProductCardProps {
   product: Product;
+  index: number;
 }
 
 const categoryIcons: Record<string, ReactNode> = {
@@ -68,7 +69,7 @@ const palettes = [
   },
 ];
 
-const ProductCard = ({ product }: ProductCardProps) => {
+const ProductCard = ({ product, index }: ProductCardProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const gallery = useMemo(() => {
@@ -81,17 +82,27 @@ const ProductCard = ({ product }: ProductCardProps) => {
     return [];
   }, [product.images, product.image]);
   const [activeImage, setActiveImage] = useState<string | null>(gallery[0] ?? null);
-  const palette = palettes[(product.id - 1) % palettes.length];
+  const palette = palettes[index % palettes.length];
   const icon = categoryIcons[product.category] ?? defaultIcon;
   const { addItems } = useCart();
   const modalId = `product-modal-${product.id}`;
   const titleId = `product-title-${product.id}`;
 
+  const sku = product.sku ?? `COV-${String(index + 1).padStart(3, '0')}`;
+  const despacho =
+    typeof product.stockDisponible === 'number'
+      ? product.stockDisponible > 0
+        ? `Disponible (${product.stockDisponible})`
+        : 'Bajo pedido'
+      : index % 2 === 0
+      ? 'Entrega 24-72h'
+      : 'Retiro inmediato';
+
   const details = [
     { label: 'Unidad', value: product.unit },
     { label: 'Categoria', value: product.category },
-    { label: 'SKU', value: `COV-${String(product.id).padStart(3, '0')}` },
-    { label: 'Despacho', value: product.id % 2 === 0 ? 'Entrega 24-72h' : 'Retiro inmediato' },
+    { label: 'SKU', value: sku },
+    { label: 'Despacho', value: despacho },
   ];
   const previewImage = gallery[0] ?? product.image;
 

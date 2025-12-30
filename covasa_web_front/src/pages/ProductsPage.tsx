@@ -1,7 +1,8 @@
 import ProductList from '../components/ProductList';
-import { products } from '../data/products';
+import { useProductos } from '../hooks/useProductos';
 
 const ProductsPage = () => {
+  const { productos, cargando, error } = useProductos();
   return (
     <div className="space-y-10 pb-20">
       <section className="container mx-auto px-4 pt-12">
@@ -16,12 +17,23 @@ const ProductsPage = () => {
               </p>
             </div>
             <div className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-xs uppercase tracking-[0.25em] text-white/80">
-              {products.length} productos disponibles
+              {productos.length} productos disponibles
             </div>
           </div>
         </div>
         <div className="mt-8">
-          <ProductList products={products} />
+          {error && (
+            <div className="mb-4 rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-3 text-sm text-[#B01010]">
+              {error}
+            </div>
+          )}
+          {cargando ? (
+            <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-6 text-sm text-slate-600">
+              Cargando catalogo...
+            </div>
+          ) : (
+            <ProductList products={productos} />
+          )}
         </div>
       </section>
     </div>

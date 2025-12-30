@@ -7,6 +7,8 @@ import ContactPage from './pages/ContactPage';
 import CartPage from './pages/CartPage';
 import QuotePage from './pages/QuotePage';
 import LoginPage from './pages/LoginPage';
+import MercadoPagoReturnPage from './pages/MercadoPagoReturnPage';
+import TransbankReturnPage from './pages/TransbankReturnPage';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import './App.css';
@@ -26,6 +28,8 @@ const AppLayout = () => {
             <Route path="/cotizar" element={<QuotePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cart" element={<CartPage />} />
+            <Route path="/pago/mercadopago" element={<MercadoPagoReturnPage />} />
+            <Route path="/pago/transbank" element={<TransbankReturnPage />} />
             {/* Add other routes here later */}
           </Routes>
         </div>
