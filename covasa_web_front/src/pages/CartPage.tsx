@@ -3,10 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import {
-  API_BASE_URL,
   crearPagoMercadoPago,
-  crearPagoTransbank,
   crearPedido,
+  iniciarPagoTransbankFormulario,
   obtenerCliente,
 } from '../services/api';
 
@@ -26,6 +25,13 @@ type ErroresDespacho = Partial<Record<keyof DespachoForm, string>>;
 type MetodoPago = 'transbank' | 'mercadopago' | null;
 
 const CLIENTE_ID_KEY = 'covasa_cliente_id';
+
+const obtenerClienteIdInicial = () => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  return window.localStorage.getItem(CLIENTE_ID_KEY);
+};
 
 const despachoInicial: DespachoForm = {
   nombre: '',
@@ -101,39 +107,63 @@ const claseInput = (error?: string) =>
 
 const CartPage = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { items, totalQuantity, updateQuantity, removeItem, clearCart } = useCart();
   const [despacho, setDespacho] = useState<DespachoForm>(despachoInicial);
   const [errores, setErrores] = useState<ErroresDespacho>({});
   const [pagoError, setPagoError] = useState<string | null>(null);
   const [metodoPago, setMetodoPago] = useState<MetodoPago>(null);
-  const [clienteId, setClienteId] = useState<string | null>(null);
+  const [clienteId, setClienteId] = useState<string | null>(() => user?.clienteId ?? obtenerClienteIdInicial());
   const [clienteCargando, setClienteCargando] = useState(false);
   const [clienteError, setClienteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.clienteId) {
+      setClienteId(user.clienteId);
+      return;
+    }
+
+    if (!user) {
+      setClienteId(obtenerClienteIdInicial());
+    }
+  }, [user, user?.clienteId]);
+
+  useEffect(() => {
+    if (!user?.direccionPrincipal) {
+      return;
+    }
+
+    const direccion = user.direccionPrincipal;
+    setDespacho((prev) => ({
+      ...prev,
+      nombre: asignarSiVacio(prev.nombre, direccion.nombreContacto),
+      telefono: asignarSiVacio(prev.telefono, direccion.telefono),
+      email: asignarSiVacio(prev.email, direccion.email),
+      direccion: asignarSiVacio(prev.direccion, direccion.direccion),
+      comuna: asignarSiVacio(prev.comuna, direccion.comuna),
+      ciudad: asignarSiVacio(prev.ciudad, direccion.ciudad ?? undefined),
+      region: asignarSiVacio(prev.region, direccion.region),
+      notas: asignarSiVacio(prev.notas, direccion.notas ?? undefined),
+    }));
+  }, [user?.direccionPrincipal]);
 
   const totalNet = items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
   const taxRate = 0.19;
   const ivaAmount = Math.round(totalNet * taxRate);
   const totalWithIva = totalNet + ivaAmount;
 
-  const asignarSiVacio = (actual: string, nuevo?: string) =>
+  const asignarSiVacio = (actual: string, nuevo?: string | null) =>
     limpiarTexto(actual) ? actual : nuevo ?? actual;
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (!clienteId) {
       return;
     }
 
-    const almacenado = window.localStorage.getItem(CLIENTE_ID_KEY);
-    if (!almacenado) {
-      return;
-    }
-
-    setClienteId(almacenado);
     setClienteCargando(true);
     setClienteError(null);
 
-    obtenerCliente(almacenado)
+    obtenerCliente(clienteId)
       .then((cliente) => {
         const nombreContacto = cliente.personaContacto || cliente.nombre;
         setDespacho((prev) => ({
@@ -154,7 +184,7 @@ const CartPage = () => {
       .finally(() => {
         setClienteCargando(false);
       });
-  }, []);
+  }, [clienteId]);
 
   const actualizarCampo =
     (campo: keyof DespachoForm) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -207,6 +237,7 @@ const CartPage = () => {
 
   const construirPedidoPayload = () => ({
     clienteId: clienteId ?? undefined,
+    usuarioId: user?.id ?? undefined,
     despacho: construirDespachoPayload(despacho),
     items: items.map((item) => ({
       productoId: String(item.productId),
@@ -223,13 +254,7 @@ const CartPage = () => {
 
     try {
       const pedido = await crearPedido(construirPedidoPayload());
-      const returnUrl = `${API_BASE_URL}/ecommerce/payments/transbank/return`;
-      const pago = await crearPagoTransbank({
-        pedidoId: pedido.pedidoId,
-        returnUrl,
-      });
-
-      window.location.href = pago.redirectUrl;
+      iniciarPagoTransbankFormulario(pedido.pedidoId);
     } catch (error) {
       const mensaje = error instanceof Error ? error.message : 'No se pudo iniciar el pago.';
       setPagoError(mensaje);

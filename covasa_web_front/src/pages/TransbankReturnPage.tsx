@@ -1,71 +1,79 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { confirmarPagoTransbank } from '../services/api';
+import { obtenerPagoRecibo, type PagoRecibo } from '../services/api';
 
 type EstadoPago = 'cargando' | 'confirmado' | 'rechazado' | 'error';
 
-type ResultadoPago = {
-  pagoId: string;
-  estado: string;
-  transbank: unknown;
-};
+const formatCurrency = (value: number) => `CLP ${value.toLocaleString('es-CL')}`;
 
 const TransbankReturnPage = () => {
   const location = useLocation();
   const { clearCart } = useCart();
   const [estado, setEstado] = useState<EstadoPago>('cargando');
-  const [mensaje, setMensaje] = useState('Confirmando tu pago con Transbank...');
+  const [mensaje, setMensaje] = useState('Procesando el pago con Transbank...');
   const [detalle, setDetalle] = useState<string | null>(null);
-  const [resultado, setResultado] = useState<ResultadoPago | null>(null);
+  const [recibo, setRecibo] = useState<PagoRecibo | null>(null);
 
-  const token = useMemo(() => {
+  const parametros = useMemo(() => {
     const params = new URLSearchParams(location.search);
-    return params.get('token_ws') || params.get('token') || '';
+    return {
+      pagoId: params.get('pagoId') || '',
+      estado: (params.get('estado') || '').toUpperCase(),
+    };
   }, [location.search]);
+
+  useEffect(() => {
+    if (parametros.estado === 'CONFIRMADO') {
+      setEstado('confirmado');
+      setMensaje('Pago confirmado. Gracias por tu compra.');
+      clearCart();
+      return;
+    }
+
+    if (parametros.estado === 'RECHAZADO') {
+      setEstado('rechazado');
+      setMensaje('El pago fue rechazado o no pudo confirmarse.');
+      return;
+    }
+
+    if (parametros.estado === 'ERROR') {
+      setEstado('error');
+      setMensaje('No pudimos confirmar el pago. Intenta nuevamente.');
+      return;
+    }
+
+    setEstado('cargando');
+    setMensaje('Confirmando tu pago con Transbank...');
+  }, [parametros.estado, clearCart]);
 
   useEffect(() => {
     let activo = true;
 
-    const confirmar = async () => {
-      if (!token) {
-        setEstado('error');
-        setMensaje('No se recibio el token de Transbank.');
-        return;
-      }
+    if (!parametros.pagoId) {
+      setDetalle('No se pudo identificar el pago.');
+      return;
+    }
 
-      try {
-        const data = await confirmarPagoTransbank(token);
+    obtenerPagoRecibo(parametros.pagoId)
+      .then((data) => {
         if (!activo) {
           return;
         }
-
-        setResultado(data);
-        if (data.estado === 'CONFIRMADO') {
-          setEstado('confirmado');
-          setMensaje('Pago confirmado. Gracias por tu compra.');
-          clearCart();
-        } else {
-          setEstado('rechazado');
-          setMensaje('El pago fue rechazado o no pudo confirmarse.');
-        }
-      } catch (error) {
+        setRecibo(data);
+      })
+      .catch((error) => {
         if (!activo) {
           return;
         }
-        const texto = error instanceof Error ? error.message : 'No se pudo confirmar el pago.';
-        setEstado('error');
-        setMensaje('No se pudo confirmar el pago.');
+        const texto = error instanceof Error ? error.message : 'No se pudo cargar el recibo.';
         setDetalle(texto);
-      }
-    };
-
-    confirmar();
+      });
 
     return () => {
       activo = false;
     };
-  }, [token, clearCart]);
+  }, [parametros.pagoId]);
 
   const estadoLabel =
     estado === 'confirmado'
@@ -95,10 +103,38 @@ const TransbankReturnPage = () => {
 
           {detalle && <p className="mt-2 text-xs text-slate-500">{detalle}</p>}
 
-          {resultado && (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-              <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Referencia</p>
-              <p className="mt-1 font-semibold text-slate-700">{resultado.pagoId}</p>
+          {recibo && (
+            <div className="mt-6 grid gap-3 text-xs text-slate-600">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Pedido</p>
+                <p className="mt-1 font-semibold text-slate-700">{recibo.pedido.codigo}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Monto</p>
+                <p className="mt-1 font-semibold text-slate-700">{formatCurrency(recibo.monto)}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Pago ID</p>
+                <p className="mt-1 font-semibold text-slate-700">{recibo.pagoId}</p>
+              </div>
+              {recibo.transbank?.authorizationCode && (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Autorizacion</p>
+                  <p className="mt-1 font-semibold text-slate-700">{recibo.transbank.authorizationCode}</p>
+                </div>
+              )}
+              {recibo.transbank?.paymentTypeCode && (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Tipo de pago</p>
+                  <p className="mt-1 font-semibold text-slate-700">{recibo.transbank.paymentTypeCode}</p>
+                </div>
+              )}
+              {recibo.transbank?.cardNumber && (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Tarjeta</p>
+                  <p className="mt-1 font-semibold text-slate-700">{recibo.transbank.cardNumber}</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -116,10 +152,6 @@ const TransbankReturnPage = () => {
               Ir al inicio
             </Link>
           </div>
-
-          {token && (
-            <p className="mt-4 text-[0.65rem] uppercase tracking-[0.25em] text-slate-400">Token {token}</p>
-          )}
         </div>
       </section>
     </div>

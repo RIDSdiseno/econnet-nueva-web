@@ -1,6 +1,7 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+﻿import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { loginUsuario, registrarUsuario } from '../services/api';
 
 type LoginFormState = {
   email: string;
@@ -29,7 +30,6 @@ const LoginPage = () => {
     password: '',
     confirmPassword: '',
   });
-  const registerEndpoint = (import.meta.env.VITE_REGISTER_ENDPOINT || '').trim();
   const googleAuthUrl = (import.meta.env.VITE_GOOGLE_AUTH_URL || '').trim();
   const microsoftAuthUrl = (import.meta.env.VITE_MICROSOFT_AUTH_URL || '').trim();
   const appleAuthUrl = (import.meta.env.VITE_APPLE_AUTH_URL || '').trim();
@@ -57,7 +57,7 @@ const LoginPage = () => {
     setRegisterForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleLoginSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const email = loginForm.email.trim();
     const password = loginForm.password.trim();
@@ -68,9 +68,23 @@ const LoginPage = () => {
     }
 
     setError('');
-    const nameFromEmail = email.split('@')[0] || 'Cliente';
-    login({ name: nameFromEmail, email });
-    navigate('/');
+
+    try {
+      const data = await loginUsuario({ email, password });
+      const usuario = data.usuario;
+      login({
+        id: usuario.id,
+        name: usuario.nombre,
+        email: usuario.email,
+        telefono: usuario.telefono ?? null,
+        clienteId: usuario.clienteId ?? null,
+        direccionPrincipal: data.direccionPrincipal ?? null,
+      });
+      navigate('/');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo iniciar sesion.';
+      setError(message);
+    }
   };
 
   const handleRegisterSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -92,40 +106,22 @@ const LoginPage = () => {
 
     setError('');
 
-    if (registerEndpoint) {
-      try {
-        const response = await fetch(registerEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name, email, password }),
-        });
-
-        if (!response.ok) {
-          const message = await response.text().catch(() => '');
-          setError(message || 'No se pudo completar el registro.');
-          return;
-        }
-
-        const data = (await response.json().catch(() => ({}))) as {
-          name?: string;
-          email?: string;
-        };
-        const savedName = data.name?.trim() || name;
-        const savedEmail = data.email?.trim() || email;
-
-        login({ name: savedName, email: savedEmail });
-        navigate('/');
-        return;
-      } catch (requestError) {
-        setError('No se pudo completar el registro.');
-        return;
-      }
+    try {
+      const data = await registrarUsuario({ nombre: name, email, password });
+      const usuario = data.usuario;
+      login({
+        id: usuario.id,
+        name: usuario.nombre,
+        email: usuario.email,
+        telefono: usuario.telefono ?? null,
+        clienteId: usuario.clienteId ?? null,
+        direccionPrincipal: null,
+      });
+      navigate('/');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo completar el registro.';
+      setError(message);
     }
-
-    login({ name, email });
-    navigate('/');
   };
 
   return (

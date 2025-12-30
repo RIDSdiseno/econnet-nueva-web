@@ -80,6 +80,57 @@ export const obtenerProductos = async (): Promise<Product[]> => {
   return data.map(mapearProducto);
 };
 
+export type UsuarioEcommerce = {
+  id: string;
+  nombre: string;
+  email: string;
+  telefono?: string | null;
+  clienteId?: string | null;
+};
+
+export type DireccionContacto = {
+  id?: string;
+  nombreContacto: string;
+  telefono: string;
+  email: string;
+  direccion: string;
+  comuna: string;
+  ciudad?: string | null;
+  region: string;
+  notas?: string | null;
+};
+
+export const registrarUsuario = async (payload: {
+  nombre: string;
+  email: string;
+  password: string;
+  telefono?: string;
+}) => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/usuarios/registro`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse<{ usuario: UsuarioEcommerce }>(response);
+};
+
+export const loginUsuario = async (payload: { email: string; password: string }) => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/usuarios/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse<{ usuario: UsuarioEcommerce; direccionPrincipal: DireccionContacto | null }>(response);
+};
+
 export type ClientePerfil = {
   id: string;
   nombre: string;
@@ -115,6 +166,7 @@ export type DespachoPayload = {
 
 export type PedidoPayload = {
   clienteId?: string;
+  usuarioId?: string;
   despacho?: DespachoPayload;
   items: Array<{
     productoId: string | number;
@@ -157,38 +209,56 @@ export const crearPagoMercadoPago = async (payload: { pedidoId: string }) => {
   }>(response);
 };
 
-export const crearPagoTransbank = async (payload: { pedidoId: string; returnUrl?: string }) => {
-  const response = await fetch(`${API_BASE_URL}/ecommerce/payments/transbank`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
+export const iniciarPagoTransbankFormulario = (pedidoId: string) => {
+  if (typeof document === 'undefined') {
+    return;
+  }
 
-  return parseResponse<{
-    pagoId: string;
-    token: string;
-    url: string;
-    redirectUrl: string;
-    monto: number;
-  }>(response);
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `${API_BASE_URL}/ecommerce/payments/transbank`;
+  form.style.display = 'none';
+
+  const inputPedido = document.createElement('input');
+  inputPedido.type = 'hidden';
+  inputPedido.name = 'pedidoId';
+  inputPedido.value = pedidoId;
+
+  form.appendChild(inputPedido);
+  document.body.appendChild(form);
+  form.submit();
 };
 
-export const confirmarPagoTransbank = async (token: string) => {
-  const response = await fetch(`${API_BASE_URL}/ecommerce/payments/transbank/commit`, {
-    method: 'POST',
+export type PagoRecibo = {
+  pagoId: string;
+  metodo: string;
+  estado: string;
+  monto: number;
+  createdAt: string;
+  pedido: {
+    id: string;
+    codigo: string;
+    total: number;
+    estado: string;
+    createdAt: string;
+  };
+  direccion: DireccionContacto | null;
+  transbank?: {
+    buyOrder: string;
+    authorizationCode: string;
+    paymentTypeCode: string;
+    installmentsNumber: number | null;
+    cardNumber?: string;
+    transactionDate?: string | null;
+  } | null;
+};
+
+export const obtenerPagoRecibo = async (pagoId: string) => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/payments/${pagoId}`, {
     headers: {
-      'Content-Type': 'application/json',
       Accept: 'application/json',
     },
-    body: JSON.stringify({ token }),
   });
 
-  return parseResponse<{
-    pagoId: string;
-    estado: string;
-    transbank: unknown;
-  }>(response);
+  return parseResponse<PagoRecibo>(response);
 };
