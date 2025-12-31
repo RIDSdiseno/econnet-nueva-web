@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboa
 import { createPortal } from 'react-dom';
 import type { Product } from '../data/products';
 import { useCart } from '../context/CartContext';
+import ProductImageGallery from './ProductImageGallery';
+import { getProductImages } from '../utils/productImages';
 
 interface ProductCardProps {
   product: Product;
@@ -72,16 +74,7 @@ const palettes = [
 const ProductCard = ({ product, index }: ProductCardProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const overlayRef = useRef<HTMLDivElement | null>(null);
-  const gallery = useMemo(() => {
-    if (product.images && product.images.length > 0) {
-      return product.images;
-    }
-    if (product.image) {
-      return [product.image];
-    }
-    return [];
-  }, [product.images, product.image]);
-  const [activeImage, setActiveImage] = useState<string | null>(gallery[0] ?? null);
+  const gallery = useMemo(() => getProductImages(product), [product]);
   const palette = palettes[index % palettes.length];
   const icon = categoryIcons[product.category] ?? defaultIcon;
   const { addItems } = useCart();
@@ -89,22 +82,22 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
   const titleId = `product-title-${product.id}`;
 
   const sku = product.sku ?? `COV-${String(index + 1).padStart(3, '0')}`;
-  const despacho =
-    typeof product.stockDisponible === 'number'
-      ? product.stockDisponible > 0
-        ? `Disponible (${product.stockDisponible})`
-        : 'Bajo pedido'
-      : index % 2 === 0
-      ? 'Entrega 24-72h'
-      : 'Retiro inmediato';
+  const stockDisponible = typeof product.stockDisponible === 'number' ? product.stockDisponible : null;
+  const stockValor = stockDisponible ?? 0;
+  const stockResumen = `${stockValor}`;
+  const despacho = index % 2 === 0 ? 'Entrega 24-72h' : 'Retiro inmediato';
+  const disponibilidadTitulo =
+    stockDisponible === null ? 'Stock por confirmar' : stockDisponible > 0 ? 'Disponible para entrega' : 'Sin stock inmediato';
+  const disponibilidadDetalle = `${stockValor}`;
 
   const details = [
     { label: 'Unidad', value: product.unit },
     { label: 'Categoria', value: product.category },
     { label: 'SKU', value: sku },
+    { label: 'Stock', value: stockResumen },
     { label: 'Despacho', value: despacho },
   ];
-  const previewImage = gallery[0] ?? product.image;
+  const previewImage = gallery[0];
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
@@ -130,12 +123,6 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
       },
     ]);
   };
-
-  useEffect(() => {
-    if (isModalOpen) {
-      setActiveImage(gallery[0] ?? null);
-    }
-  }, [gallery, isModalOpen]);
 
   useEffect(() => {
     if (isModalOpen) {
@@ -178,7 +165,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
         className="card-reveal group flex h-full cursor-pointer flex-col rounded-3xl border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_50px_rgba(15,23,32,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(15,23,32,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E04040] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
       >
         <div
-          className={`relative flex h-56 flex-col gap-3 overflow-hidden rounded-2xl bg-gradient-to-br ${palette.gradient} p-4 ring-1 ${palette.ring}`}
+          className={`relative flex h-72 flex-col gap-4 overflow-hidden rounded-2xl bg-gradient-to-br ${palette.gradient} p-5 ring-1 ${palette.ring}`}
         >
           <div className="flex items-center justify-between">
             <span className="rounded-full bg-white/80 px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-slate-600">
@@ -186,20 +173,22 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
             </span>
             <span className={`rounded-full bg-white/80 p-2 ${palette.accent}`}>{icon}</span>
           </div>
-          <div className="flex h-20 items-center justify-center rounded-2xl bg-white/90 p-2">
+          <div className="flex h-36 items-center justify-center rounded-2xl bg-white/95 p-3 shadow-sm">
             {previewImage ? (
-              <img src={previewImage} alt={product.name} className="h-16 w-full object-contain" loading="lazy" />
+              <img src={previewImage} alt={product.name} className="h-32 w-full object-contain" loading="lazy" />
             ) : (
               <span className={`rounded-full bg-white/80 p-3 ${palette.accent}`}>{icon}</span>
             )}
           </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Stock nuevo</p>
-            <h3 className="font-display text-2xl text-slate-900">{product.name}</h3>
-          </div>
         </div>
         <div className="flex flex-1 flex-col gap-3 pt-4">
           <p className="text-sm text-slate-600">{product.description}</p>
+          <div className="flex items-center justify-between text-[0.65rem] uppercase tracking-[0.25em] text-slate-500">
+            <span>Stock</span>
+            <span className="rounded-full bg-white px-3 py-1 text-[0.65rem] font-semibold text-slate-700 shadow-sm">
+              {stockValor}
+            </span>
+          </div>
           <div className="flex items-center justify-between text-[0.6rem] uppercase tracking-[0.25em] text-slate-400">
             <span>Ver detalles</span>
             <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -207,9 +196,10 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
             </svg>
           </div>
           <div className="mt-auto flex items-center justify-between gap-3">
-            <span className="text-xl font-semibold text-slate-900">
-              CLP {product.price.toLocaleString('es-CL')}
-            </span>
+            <div className="rounded-2xl bg-[#1b0b0b] px-4 py-2 text-white shadow-sm">
+              <p className="text-[0.55rem] uppercase tracking-[0.3em] text-white/60">Precio</p>
+              <p className="text-2xl font-semibold">CLP {product.price.toLocaleString('es-CL')}</p>
+            </div>
             <button
               type="button"
               onClick={handleAddToCart}
@@ -257,46 +247,9 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                   </button>
                 </div>
 
-                <div className="mt-6 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
-                    <div className="flex h-40 items-center justify-center rounded-2xl bg-white">
-                      {previewImage ? (
-                        <img
-                          src={activeImage ?? previewImage}
-                          alt={product.name}
-                          className="h-28 w-full object-contain"
-                        />
-                      ) : (
-                        <span className={`rounded-full bg-white/80 p-4 ${palette.accent}`}>{icon}</span>
-                      )}
-                    </div>
-                    {gallery.length > 1 ? (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {gallery.map((image, index) => {
-                          const isActive = image === (activeImage ?? previewImage);
-                          return (
-                            <button
-                              key={`${image}-${index}`}
-                              type="button"
-                              onClick={() => setActiveImage(image)}
-                              aria-pressed={isActive}
-                              aria-label={`Ver imagen ${index + 1} de ${product.name}`}
-                              className={`flex h-14 w-16 items-center justify-center rounded-2xl border bg-white/90 transition ${
-                                isActive
-                                  ? 'border-[#B01010] shadow-sm'
-                                  : 'border-slate-200 hover:border-[#B01010]/60'
-                              }`}
-                            >
-                              <img
-                                src={image}
-                                alt={`${product.name} vista ${index + 1}`}
-                                className="h-10 w-full object-contain"
-                              />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : null}
+                <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                    <ProductImageGallery images={gallery} title={product.name} />
                     <p className="mt-4 text-sm text-slate-600">{product.description}</p>
                     <div className="mt-6 grid grid-cols-2 gap-3 text-xs text-slate-600">
                       {details.map((detail) => (
@@ -333,10 +286,8 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
 
                     <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
                       <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Disponibilidad</p>
-                      <p className="mt-2 font-semibold text-slate-900">Stock inmediato en bodega central.</p>
-                      <p className="mt-2 text-xs text-slate-500">
-                        Coordinamos entregas por etapa y volumen.
-                      </p>
+                      <p className="mt-2 font-semibold text-slate-900">{disponibilidadTitulo}</p>
+                      <p className="mt-2 text-xs text-slate-500">{disponibilidadDetalle}</p>
                     </div>
                   </div>
                 </div>

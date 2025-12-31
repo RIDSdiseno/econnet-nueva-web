@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -149,7 +149,7 @@ const Header = () => {
                 <img
                   src="/img/3.png"
                   alt="COVASA"
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-cover scale-110"
                   style={{ objectPosition: 'center 70%' }}
                 />
               </div>
@@ -180,8 +180,14 @@ const Header = () => {
             </div>
 
             <div className="hidden lg:flex items-center gap-4 text-sm font-medium text-slate-600">
+              <NavLink to="/" end className={desktopNavClass}>
+                Inicio
+              </NavLink>
               <NavLink to="/products" className={desktopNavClass}>
                 Productos
+              </NavLink>
+              <NavLink to="/nosotros" className={desktopNavClass}>
+                Nosotros
               </NavLink>
               <NavLink to="/contact" className={desktopNavClass}>
                 Contacto
@@ -202,12 +208,12 @@ const Header = () => {
                     onClick={handleLogout}
                     className="rounded-full border border-[#F0E0E0] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#F7EAEA]"
                   >
-                    Cerrar sesion
+                    Cerrar sesión
                   </button>
                 </div>
               ) : (
                 <NavLink to="/login" className={desktopNavClass}>
-                  Iniciar sesion
+                  Iniciar sesión
                 </NavLink>
               )}
               <NavLink to="/cart" className={cartClass}>
@@ -257,12 +263,15 @@ const Header = () => {
                 <NavLink to="/products" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
                   Productos
                 </NavLink>
+                <NavLink to="/nosotros" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
+                  Nosotros
+                </NavLink>
                 <NavLink to="/contact" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
                   Contacto
                 </NavLink>
                 {!isAuthenticated && (
                   <NavLink to="/login" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
-                    Iniciar sesion
+                    Iniciar sesión
                   </NavLink>
                 )}
               </nav>
@@ -286,7 +295,7 @@ const Header = () => {
                     onClick={handleLogout}
                     className="mt-4 w-full rounded-full border border-[#F0E0E0] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#F7EAEA]"
                   >
-                    Cerrar sesion
+                    Cerrar sesión
                   </button>
                 </div>
               )}
@@ -334,3 +343,4 @@ const Header = () => {
 };
 
 export default Header;
+

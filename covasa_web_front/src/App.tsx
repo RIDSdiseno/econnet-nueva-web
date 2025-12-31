@@ -9,6 +9,7 @@ import QuotePage from './pages/QuotePage';
 import LoginPage from './pages/LoginPage';
 import MercadoPagoReturnPage from './pages/MercadoPagoReturnPage';
 import TransbankReturnPage from './pages/TransbankReturnPage';
+import NosotrosPage from './pages/NosotrosPage';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import './App.css';
@@ -25,6 +26,7 @@ const AppLayout = () => {
             <Route path="/" element={<HomePage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/contact" element={<ContactPage />} />
+            <Route path="/nosotros" element={<NosotrosPage />} />
             <Route path="/cotizar" element={<QuotePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cart" element={<CartPage />} />

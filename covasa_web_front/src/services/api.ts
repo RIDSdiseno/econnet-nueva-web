@@ -36,6 +36,7 @@ export type ProductoCatalogo = {
   unidad: string;
   unidadMedida?: string;
   fotoUrl: string | null;
+  imagenes?: string[];
   tipo: string;
   precioNeto: number;
   precioLista: number;
@@ -56,18 +57,33 @@ const normalizarImagen = (fotoUrl: string | null) => {
   return `${base}${fotoUrl.startsWith('/') ? '' : '/'}${fotoUrl}`;
 };
 
-const mapearProducto = (producto: ProductoCatalogo): Product => ({
-  id: producto.id,
-  name: producto.nombre,
-  price: producto.precioNeto,
-  description: producto.descripcion || producto.nombre,
-  images: [],
-  image: normalizarImagen(producto.fotoUrl),
-  unit: producto.unidad || producto.unidadMedida || 'unidad',
-  category: producto.tipo || 'Producto',
-  sku: producto.sku ?? undefined,
-  stockDisponible: producto.stockDisponible,
-});
+const normalizarImagenes = (imagenes?: string[], fotoUrl?: string | null) => {
+  const normalizadas = (imagenes ?? [])
+    .map((imagen) => normalizarImagen(imagen))
+    .filter((imagen): imagen is string => Boolean(imagen));
+
+  const principal = normalizarImagen(fotoUrl ?? null);
+  if (principal && !normalizadas.includes(principal)) {
+    normalizadas.unshift(principal);
+  }
+  return normalizadas;
+};
+
+const mapearProducto = (producto: ProductoCatalogo): Product => {
+  const imagenes = normalizarImagenes(producto.imagenes, producto.fotoUrl);
+  return {
+    id: producto.id,
+    name: producto.nombre,
+    price: producto.precioNeto,
+    description: producto.descripcion || producto.nombre,
+    images: imagenes,
+    image: imagenes[0] ?? normalizarImagen(producto.fotoUrl),
+    unit: producto.unidad || producto.unidadMedida || 'unidad',
+    category: producto.tipo || 'Producto',
+    sku: producto.sku ?? undefined,
+    stockDisponible: producto.stockDisponible,
+  };
+};
 
 export const obtenerProductos = async (): Promise<Product[]> => {
   const response = await fetch(`${API_BASE_URL}/productos`, {

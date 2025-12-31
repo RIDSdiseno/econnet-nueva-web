@@ -7,22 +7,22 @@ const Footer = () => {
         <div className="grid gap-10 md:grid-cols-4">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-20 w-40 items-center justify-center overflow-hidden rounded-xl border border-[#2a0d0d] bg-white/90 p-2 shadow-sm sm:h-24 sm:w-48">
+              <div className="flex h-20 w-40 items-center justify-center overflow-hidden rounded-xl border border-[#2a0d0d] bg-white/90 p-0 shadow-sm sm:h-24 sm:w-48">
                 <img
                   src="/img/3.png"
                   alt="COVASA"
-                  className="h-full w-full object-contain"
+                  className="h-full w-full object-cover scale-110"
                 />
               </div>
             </div>
             <p className="text-sm text-slate-400">
-              Abastecimiento Ã¡gil para constructoras, maestros y proyectos en crecimiento. LogÃ­stica confiable y
-              asesorÃ­a tÃ©cnica para cada etapa de obra.
+              Abastecimiento ágil para constructoras, maestros y proyectos en crecimiento. Logística confiable y
+              asesoría técnica para cada etapa de obra.
             </p>
           </div>
 
           <div>
-            <h5 className="text-xs uppercase tracking-[0.32em] text-slate-400">NavegaciÃ³n</h5>
+            <h5 className="text-xs uppercase tracking-[0.32em] text-slate-400">Navegación</h5>
             <ul className="mt-4 space-y-2 text-sm">
               <li>
                 <Link to="/" className="transition hover:text-white">
@@ -32,6 +32,11 @@ const Footer = () => {
               <li>
                 <Link to="/products" className="transition hover:text-white">
                   Productos
+                </Link>
+              </li>
+              <li>
+                <Link to="/nosotros" className="transition hover:text-white">
+                  Nosotros
                 </Link>
               </li>
               <li>
@@ -48,22 +53,22 @@ const Footer = () => {
           </div>
 
           <div>
-            <h5 className="text-xs uppercase tracking-[0.32em] text-slate-400">CatÃ¡logo</h5>
+            <h5 className="text-xs uppercase tracking-[0.32em] text-slate-400">Catálogo</h5>
             <ul className="mt-4 space-y-2 text-sm text-slate-400">
-              <li>Obra gruesa y Ã¡ridos</li>
+              <li>Obra gruesa y áridos</li>
               <li>Fierro, mallas y perfiles</li>
-              <li>TabiquerÃ­a y cielos</li>
+              <li>Tabiquería y cielos</li>
               <li>Terminaciones y pintura</li>
             </ul>
           </div>
 
           <div>
-            <h5 className="text-xs uppercase tracking-[0.32em] text-slate-400">AtenciÃ³n</h5>
+            <h5 className="text-xs uppercase tracking-[0.32em] text-slate-400">Atención</h5>
             <ul className="mt-4 space-y-2 text-sm text-slate-400">
               <li>Av. Principal 1234, Santiago</li>
               <li>+56 9 1234 5678</li>
               <li>ventas@covasa.cl</li>
-              <li>Lun a sÃ¡b 08:30 - 18:30</li>
+              <li>Lun a sáb 08:30 - 18:30</li>
             </ul>
           </div>
         </div>
@@ -71,7 +76,7 @@ const Footer = () => {
         <div className="mt-10 border-t border-[#2a0d0d] pt-4 text-xs uppercase tracking-[0.25em] text-slate-500">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <span>&copy; {new Date().getFullYear()} COVASA. Todos los derechos reservados.</span>
-            <span>Proveedor oficial de materiales para la construcciÃ³n.</span>
+            <span>Proveedor oficial de materiales para la construcción.</span>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import ProductList from '../components/ProductList';
-import { products } from '../data/products';
+import { useProductos } from '../hooks/useProductos';
 
 const categories = [
   {
@@ -100,10 +100,18 @@ const stats = [
   { value: '95%', label: 'Entregas en plazo' },
 ];
 
-const brands = ['Melón', 'Sika', 'Bosch', 'Ceresita', 'Arauco', 'Volcán'];
+const brands = [
+  { name: 'Melon', logo: '/img/brands/melon.svg' },
+  { name: 'Sika', logo: '/img/brands/sika.svg' },
+  { name: 'Bosch', logo: '/img/brands/bosch.svg' },
+  { name: 'Ceresita', logo: '/img/brands/ceresita.svg' },
+  { name: 'Arauco', logo: '/img/brands/arauco.svg' },
+  { name: 'Volcan', logo: '/img/brands/volcan.svg' },
+];
 
 const HomePage = () => {
-  const featuredProducts = products.slice(0, 6);
+  const { productos, cargando, error } = useProductos();
+  const featuredProducts = productos.slice(0, 6);
 
   return (
     <div className="space-y-20 pb-20">
@@ -202,13 +210,13 @@ const HomePage = () => {
         </div>
       </section>
 
-      <section className="bg-white/80 py-16">
+      <section className="bg-[#120606] py-16">
         <div className="container mx-auto px-4">
           <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="space-y-6">
-              <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Servicios</p>
-              <h2 className="font-display text-4xl text-slate-900">Logística y soporte para cada etapa</h2>
-              <p className="text-sm text-slate-600">
+              <p className="text-xs uppercase tracking-[0.32em] text-white/70">Servicios</p>
+              <h2 className="font-display text-4xl text-white">Logística y soporte para cada etapa</h2>
+              <p className="text-sm text-white/75">
                 Nuestro equipo acompaña desde la planificación hasta la entrega en obra. Coordinamos stock, despacho y
                 asesoría para mantener tu cronograma.
               </p>
@@ -222,13 +230,13 @@ const HomePage = () => {
               </div>
             </div>
 
-            <div className="rounded-3xl bg-[#1b0b0b] p-8 text-white shadow-lift">
+            <div className="rounded-3xl border border-slate-200/80 bg-white/95 p-8 text-slate-900 shadow-lift">
               <p className="text-xs uppercase tracking-[0.32em] text-[#E04040]">Sala de ventas</p>
               <h3 className="mt-4 font-display text-3xl">Atención industrial con foco en obras.</h3>
-              <p className="mt-4 text-sm text-white/70">
+              <p className="mt-4 text-sm text-slate-600">
                 Agenda visitas técnicas, revisa alternativas de abastecimiento y coordina entregas escalonadas.
               </p>
-              <ul className="mt-6 space-y-3 text-sm text-white/80">
+              <ul className="mt-6 space-y-3 text-sm text-slate-600">
                 <li className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-[#E04040]"></span>
                   Ejecutivos dedicados para proyectos.
@@ -269,7 +277,21 @@ const HomePage = () => {
           </div>
         </div>
         <div className="mt-8">
-          <ProductList products={featuredProducts} />
+          {cargando ? (
+            <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-6 text-sm text-slate-500">
+              Cargando catalogo...
+            </div>
+          ) : error ? (
+            <div className="rounded-3xl border border-rose-200/80 bg-rose-50/80 p-6 text-sm text-rose-700">
+              No se pudo cargar el catalogo. Intenta nuevamente.
+            </div>
+          ) : featuredProducts.length > 0 ? (
+            <ProductList products={featuredProducts} />
+          ) : (
+            <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-6 text-sm text-slate-500">
+              No hay productos disponibles.
+            </div>
+          )}
         </div>
       </section>
 
@@ -320,10 +342,15 @@ const HomePage = () => {
           <div className="relative mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             {brands.map((brand) => (
               <div
-                key={brand}
-                className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/10 px-4 py-6 text-xs uppercase tracking-[0.3em] text-white"
+                key={brand.name}
+                className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/10 px-4 py-6"
               >
-                {brand}
+                <img
+                  src={brand.logo}
+                  alt={brand.name}
+                  className="h-8 w-auto object-contain opacity-90"
+                  loading="lazy"
+                />
               </div>
             ))}
           </div>
