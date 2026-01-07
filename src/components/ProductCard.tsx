@@ -1,0 +1,320 @@
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import type { Product } from '../data/products';
+import { useCart } from '../context/CartContext';
+import ProductImageGallery from './ProductImageGallery';
+import { getProductImages } from '../utils/productImages';
+
+interface ProductCardProps {
+  product: Product;
+  index: number;
+}
+
+const categoryIcons: Record<string, ReactNode> = {
+  'Obra gruesa': (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <rect x="3" y="6" width="8" height="4" rx="1" />
+      <rect x="13" y="6" width="8" height="4" rx="1" />
+      <rect x="3" y="13" width="8" height="4" rx="1" />
+      <rect x="13" y="13" width="8" height="4" rx="1" />
+    </svg>
+  ),
+  Aridos: (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <circle cx="7" cy="15" r="3" />
+      <circle cx="15" cy="16" r="3" />
+      <circle cx="12" cy="9" r="2.5" />
+    </svg>
+  ),
+  'Fierro y mallas': (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+      <path d="M8 6v12M16 6v12" />
+    </svg>
+  ),
+  Tabiqueria: (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <rect x="5" y="4" width="14" height="16" rx="2" />
+      <path d="M9 4v16M15 4v16" />
+    </svg>
+  ),
+};
+
+const defaultIcon = (
+  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
+    <path d="M12 3l8 4v10l-8 4-8-4V7l8-4z" />
+    <path d="M12 3v18" />
+    <path d="M4 7l8 4 8-4" />
+  </svg>
+);
+
+const palettes = [
+  {
+    gradient: 'from-[#F0E0E0] via-white to-white',
+    ring: 'ring-[#E04040]/40',
+    accent: 'text-[#B01010]',
+  },
+  {
+    gradient: 'from-[#F7EAEA] via-white to-white',
+    ring: 'ring-[#D03030]/35',
+    accent: 'text-[#C02020]',
+  },
+  {
+    gradient: 'from-[#EFE6E6] via-white to-white',
+    ring: 'ring-[#B01010]/30',
+    accent: 'text-[#A01010]',
+  },
+  {
+    gradient: 'from-[#F5DADA] via-white to-white',
+    ring: 'ring-[#E04040]/40',
+    accent: 'text-[#D03030]',
+  },
+];
+
+const ProductCard = ({ product, index }: ProductCardProps) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const gallery = useMemo(() => getProductImages(product), [product]);
+  const palette = palettes[index % palettes.length];
+  const icon = categoryIcons[product.category] ?? defaultIcon;
+  const { addItems } = useCart();
+  const modalId = `product-modal-${product.id}`;
+  const titleId = `product-title-${product.id}`;
+
+  const sku = product.sku ?? `COV-${String(index + 1).padStart(3, '0')}`;
+  const stockDisponible = typeof product.stockDisponible === 'number' ? product.stockDisponible : null;
+  const stockValor = stockDisponible ?? 0;
+  const stockResumen = stockDisponible === null ? 'Por confirmar' : `${stockValor}`;
+  const despacho = index % 2 === 0 ? 'Entrega 24-72h' : 'Retiro inmediato';
+  const description = product.description?.trim();
+  const disponibilidadTitulo =
+    stockDisponible === null ? 'Stock por confirmar' : stockDisponible > 0 ? 'Disponible para entrega' : 'Sin stock inmediato';
+  const disponibilidadDetalle =
+    stockDisponible === null
+      ? 'Actualiza stock para ver cantidad.'
+      : stockDisponible > 0
+        ? `${stockValor} ${stockValor === 1 ? 'unidad disponible' : 'unidades disponibles'}`
+        : 'Sin stock inmediato en bodega.';
+
+  const details = [
+    { label: 'Unidad', value: product.unit },
+    { label: 'Categoria', value: product.category },
+    { label: 'SKU', value: sku },
+    { label: 'Stock', value: stockResumen },
+    { label: 'Despacho', value: despacho },
+  ].filter((detail) => detail.value);
+  const previewImage = gallery[0];
+
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
+
+  const handleCardKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openModal();
+    }
+  };
+
+  const handleAddToCart = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    addItems([
+      {
+        productId: product.id,
+        name: product.name,
+        description: product.description,
+        unit: product.unit,
+        unitPrice: product.price,
+        quantity: 1,
+        image: product.image || undefined,
+      },
+    ]);
+  };
+
+  useEffect(() => {
+    if (isModalOpen) {
+      overlayRef.current?.scrollTo({ top: 0 });
+    }
+  }, [isModalOpen]);
+
+  useEffect(() => {
+    if (!isModalOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsModalOpen(false);
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isModalOpen]);
+
+  return (
+    <>
+      <article
+        role="button"
+        tabIndex={0}
+        aria-expanded={isModalOpen}
+        aria-controls={modalId}
+        aria-haspopup="dialog"
+        aria-label={`Ver detalles de ${product.name}`}
+        onClick={openModal}
+        onKeyDown={handleCardKeyDown}
+        className="card-reveal group flex h-full cursor-pointer flex-col rounded-3xl border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_50px_rgba(15,23,32,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(15,23,32,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E04040] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+      >
+        <div
+          className={`relative flex h-64 flex-col gap-4 overflow-hidden rounded-2xl bg-gradient-to-br ${palette.gradient} p-5 ring-1 ${palette.ring} sm:h-72`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="rounded-full bg-white/80 px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-slate-600">
+              {product.category}
+            </span>
+            <span className={`rounded-full bg-white/80 p-2 ${palette.accent}`}>{icon}</span>
+          </div>
+          <div className="flex h-32 items-center justify-center rounded-2xl bg-white/95 p-3 shadow-sm sm:h-36">
+            {previewImage ? (
+              <img src={previewImage} alt={product.name} className="h-full w-full object-contain" loading="lazy" />
+            ) : (
+              <span className={`rounded-full bg-white/80 p-3 ${palette.accent}`}>{icon}</span>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-1 flex-col gap-3 pt-4">
+          <p className="text-sm text-slate-600">{product.description}</p>
+          <div className="flex items-center justify-between text-[0.65rem] uppercase tracking-[0.25em] text-slate-500">
+            <span>Stock</span>
+            <span className="rounded-full bg-white px-3 py-1 text-[0.65rem] font-semibold text-slate-700 shadow-sm">
+              {stockValor}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[0.6rem] uppercase tracking-[0.25em] text-slate-400">
+            <span>Ver detalles</span>
+            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
+          <div className="mt-auto flex items-center justify-between gap-3">
+            <div className="rounded-2xl bg-[#1b0b0b] px-4 py-2 text-white shadow-sm">
+              <p className="text-[0.55rem] uppercase tracking-[0.3em] text-white/60">Precio</p>
+              <p className="text-xl font-semibold sm:text-2xl">CLP {product.price.toLocaleString('es-CL')}</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              onKeyDown={(event) => event.stopPropagation()}
+              className="rounded-full bg-[#B01010] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#D03030]"
+            >
+              Agregar
+            </button>
+          </div>
+        </div>
+      </article>
+
+      {isModalOpen && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={overlayRef}
+              className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto px-4 py-10"
+              onClick={closeModal}
+            >
+              <div className="modal-backdrop fixed inset-0 bg-[#120606]/55 backdrop-blur-md"></div>
+                <div
+                  id={modalId}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby={titleId}
+                  className="modal-panel relative z-10 w-full max-w-5xl rounded-3xl border border-white/30 bg-white/40 p-6 shadow-[0_30px_80px_rgba(15,23,32,0.35)] backdrop-blur-xl sm:p-8"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-[#B01010]">{product.category}</p>
+                    <h3 id={titleId} className="font-display text-3xl text-slate-900">
+                      {product.name}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                    aria-label="Cerrar"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+                  <div className="min-w-0 rounded-3xl border border-white/30 bg-white/40 p-5 backdrop-blur-xl">
+                    <ProductImageGallery images={gallery} title={product.name} />
+                    {description ? (
+                      <div className="mt-4 rounded-2xl border border-white/30 bg-white/40 px-4 py-3 backdrop-blur-xl">
+                        <p className="text-[0.6rem] uppercase tracking-[0.25em] text-slate-400">Descripcion</p>
+                        <p className="mt-2 text-sm text-slate-700">{description}</p>
+                      </div>
+                    ) : null}
+                    <div className={description ? 'mt-5' : 'mt-4'}>
+                      <p className="text-[0.6rem] uppercase tracking-[0.25em] text-slate-400">Ficha tecnica</p>
+                      <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-slate-600 lg:grid-cols-3">
+                        {details.map((detail) => (
+                          <div
+                            key={detail.label}
+                            className="min-w-0 rounded-2xl border border-white/30 bg-white/40 px-3 py-2 backdrop-blur-xl"
+                          >
+                            <p className="text-[0.6rem] uppercase tracking-[0.25em] text-slate-400">{detail.label}</p>
+                            <p className="mt-1 break-words font-semibold text-slate-700">{detail.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="min-w-0 flex flex-col gap-4">
+                    <div className="rounded-3xl border border-white/30 bg-white/40 p-6 shadow-sm backdrop-blur-xl">
+                      <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Precio</p>
+                      <p className="mt-2 text-3xl font-semibold text-slate-900">
+                        CLP {product.price.toLocaleString('es-CL')}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-500">Precio referencial por {product.unit}.</p>
+                    </div>
+
+                    <div className="rounded-3xl border border-white/30 bg-white/40 p-6 text-slate-700 shadow-sm backdrop-blur-xl">
+                      <p className="text-xs uppercase tracking-[0.3em] text-[#B01010]">Compra rapida</p>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Agrega al carrito y coordina despacho o retiro en bodega.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleAddToCart}
+                        className="mt-5 w-full rounded-full bg-[#B01010] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#D03030]"
+                      >
+                        Agregar al carrito
+                      </button>
+                    </div>
+
+                    <div className="rounded-3xl border border-white/30 bg-white/40 p-6 text-sm text-slate-600 backdrop-blur-xl">
+                      <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Disponibilidad</p>
+                      <p className="mt-2 font-semibold text-slate-900">{disponibilidadTitulo}</p>
+                      <p className="mt-2 text-xs text-slate-500">{disponibilidadDetalle}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+};
+
+export default ProductCard;

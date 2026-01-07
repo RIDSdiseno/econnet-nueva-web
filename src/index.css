@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --ink: #1f0b0b;
+  --steel: #2a0d0d;
+  --sand: #f7f3f3;
+  --clay: #c02020;
+  --clay-deep: #b01010;
+  --sun: #e04040;
+}
+
+html {
+  font-size: 106.25%;
+}
+
+html.font-scale-lg {
+  font-size: 118.75%;
+}
+
+body {
+  position: relative;
+  min-height: 100vh;
+  margin: 0;
+  background-color: var(--sand);
+  color: var(--ink);
+  font-family: "Sora", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  isolation: isolate;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-image:
+    url("/fondo/fondo_covasa.png"),
+    radial-gradient(circle at top right, rgba(224, 64, 64, 0.08), transparent 45%),
+    radial-gradient(circle at 10% 20%, rgba(176, 16, 16, 0.08), transparent 40%);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(18px);
+  transform: scale(1.06);
+  transform-origin: center;
+  opacity: 0.85;
+  pointer-events: none;
+}
