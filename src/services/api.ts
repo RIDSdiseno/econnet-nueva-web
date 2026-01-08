@@ -203,6 +203,29 @@ export const loginMicrosoft = async (payload: { idToken: string }) => {
 };
 
 /**
+ * ✅ LOGIN GOOGLE
+ * Backend: POST /api/ecommerce/usuarios/login/google
+ * Input: { credential }
+ * Output: { token, user, direccionPrincipal }
+ */
+export const loginGoogle = async (payload: { credential: string }) => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/usuarios/login/google`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse<{
+    token: string;
+    user: UsuarioEcommerce;
+    direccionPrincipal: DireccionContacto | null;
+  }>(response);
+};
+
+/**
  * (Opcional pero recomendado)
  * GET /api/ecommerce/usuarios/me (requiere Authorization Bearer)
  */

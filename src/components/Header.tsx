@@ -60,35 +60,35 @@ const Header = () => {
   }, [isLargeText]);
 
   return (
-    <header className="sticky top-0 z-50 shadow-sm">
-      <div className="bg-[#1b0b0b] text-[#F0E0E0]">
+    <header className="sticky top-0 z-50 shadow-lg">
+      <div className="bg-gradient-to-r from-[#1b0b0b] via-[#2a1515] to-[#1b0b0b] text-[#F0E0E0]">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col gap-2 py-2 text-[0.65rem] uppercase tracking-[0.2em] sm:flex-row sm:items-center sm:justify-between sm:tracking-[0.28em]">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-[#E04040]"></span>
-                Despacho 24-72h en RM
+          <div className="flex flex-col gap-2 py-2.5 text-[0.65rem] uppercase tracking-[0.2em] sm:flex-row sm:items-center sm:justify-between sm:tracking-[0.28em]">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="flex items-center gap-2 font-semibold">
+                <span className="h-2 w-2 rounded-full bg-[#E04040] animate-pulse"></span>
+                <span className="bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">Despacho 24-72h en RM</span>
               </span>
-              <span className="hidden md:inline">AtenciÃ³n especializada para obras</span>
+              <span className="hidden md:inline text-white/70">Atención especializada para obras</span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <button
                 type="button"
                 onClick={() => setIsLargeText((prev) => !prev)}
-                className="rounded-full border border-white/20 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white/80 transition hover:bg-white/10"
+                className="rounded-full border border-[#E04040]/30 bg-[#E04040]/10 px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-white/90 transition hover:bg-[#E04040]/20 hover:border-[#E04040]/50"
                 aria-pressed={isLargeText}
-                aria-label="Cambiar tamaÃ±o de letra"
+                aria-label="Cambiar tamaño de letra"
               >
                 {isLargeText ? 'A-' : 'A+'}
               </button>
               <div className="hidden md:flex items-center gap-4">
-                <div className="flex items-center gap-2 text-white/70">
+                <div className="flex items-center gap-2.5 text-white/70">
                   <a
                     href="https://www.facebook.com"
                     target="_blank"
                     rel="noreferrer"
                     aria-label="Facebook"
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 transition hover:bg-white/10 hover:text-white"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-white/5 backdrop-blur-sm transition hover:bg-[#E04040]/20 hover:border-[#E04040]/40 hover:text-white hover:scale-110"
                   >
                     <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
                       <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
@@ -99,7 +99,7 @@ const Header = () => {
                     target="_blank"
                     rel="noreferrer"
                     aria-label="Instagram"
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 transition hover:bg-white/10 hover:text-white"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-white/5 backdrop-blur-sm transition hover:bg-[#E04040]/20 hover:border-[#E04040]/40 hover:text-white hover:scale-110"
                   >
                     <svg
                       viewBox="0 0 24 24"
@@ -119,7 +119,7 @@ const Header = () => {
                     target="_blank"
                     rel="noreferrer"
                     aria-label="WhatsApp"
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 transition hover:bg-white/10 hover:text-white"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-white/5 backdrop-blur-sm transition hover:bg-[#E04040]/20 hover:border-[#E04040]/40 hover:text-white hover:scale-110"
                   >
                     <svg
                       viewBox="0 0 24 24"
@@ -133,24 +133,23 @@ const Header = () => {
                     </svg>
                   </a>
                 </div>
-                <span>+56 9 1234 5678</span>
-                <span>ventas@covasa.cl</span>
+                <span className="font-semibold text-white/90">+56 9 1234 5678</span>
+                <span className="text-white/70">ventas@covasa.cl</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-white/90 backdrop-blur border-b border-slate-200">
+      <div className="bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between gap-4 py-4">
-            <Link to="/" className="flex items-center gap-3" aria-label="COVASA">
-              <div className="flex h-14 w-28 items-center justify-center overflow-hidden rounded-xl border border-[#F0E0E0] bg-white shadow-sm sm:h-16 sm:w-32">
+            <Link to="/" className="group flex items-center gap-3" aria-label="COVASA">
+              <div className="flex h-14 w-32 items-center justify-center overflow-hidden rounded-xl border-2 border-slate-200/80 bg-gradient-to-br from-white to-slate-50 shadow-md transition-all duration-300 group-hover:border-[#E04040]/30 group-hover:shadow-lg group-hover:scale-105 sm:h-16 sm:w-36 p-2">
                 <img
                   src="/img/3.png"
                   alt="COVASA"
-                  className="h-full w-full object-cover scale-110"
-                  style={{ objectPosition: 'center 70%' }}
+                  className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-110"
                 />
               </div>
             </Link>
@@ -179,7 +178,7 @@ const Header = () => {
               </NavLink>
             </div>
 
-            <div className="hidden lg:flex items-center gap-4 text-sm font-medium text-slate-600">
+            <div className="hidden lg:flex items-center gap-5 text-sm font-semibold text-slate-600">
               <NavLink to="/" end className={desktopNavClass}>
                 Inicio
               </NavLink>
@@ -194,19 +193,19 @@ const Header = () => {
               </NavLink>
               {isAuthenticated ? (
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-sm text-slate-700 shadow-sm">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#B01010] text-white">
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <div className="flex items-center gap-2.5 rounded-full border border-slate-200/80 bg-gradient-to-r from-white to-slate-50/50 px-4 py-2 text-sm text-slate-700 shadow-sm">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#B01010] to-[#D03030] text-white shadow-md">
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
                         <circle cx="12" cy="8" r="4" />
                         <path d="M4 20c2-3 5-4 8-4s6 1 8 4" />
                       </svg>
                     </span>
-                    <span className="max-w-[140px] truncate font-semibold">{displayName}</span>
+                    <span className="max-w-[140px] truncate font-bold">{displayName}</span>
                   </div>
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="rounded-full border border-[#F0E0E0] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#F7EAEA]"
+                    className="rounded-full border border-[#E04040]/30 bg-[#E04040]/5 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#E04040]/10 hover:border-[#E04040]/50 hover:shadow-md"
                   >
                     Cerrar sesión
                   </button>
@@ -219,20 +218,20 @@ const Header = () => {
               <NavLink to="/cart" className={cartClass}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
+                  className="h-5 w-5 text-white"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
+                  strokeWidth={2.5}
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
                     d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
                   />
                 </svg>
                 {totalQuantity > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#E04040] text-[0.6rem] font-bold text-white">
+                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#E04040] text-[0.65rem] font-bold text-white shadow-md animate-pulse">
                     {totalQuantity}
                   </span>
                 )}

@@ -1,11 +1,14 @@
 ﻿import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { loginUsuario, registrarUsuario, loginMicrosoft, type DireccionContacto } from '../services/api';
+import { loginUsuario, registrarUsuario, loginMicrosoft, loginGoogle, type DireccionContacto } from '../services/api';
 
 // MSAL
 import { useMsal } from '@azure/msal-react';
 import type { PopupRequest } from '@azure/msal-browser';
+
+// Google OAuth
+import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 
 type LoginFormState = {
   email: string;
@@ -30,6 +33,7 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const [isLoginPasswordVisible, setIsLoginPasswordVisible] = useState(false);
   const [isLoadingMicrosoft, setIsLoadingMicrosoft] = useState(false);
+  const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
 
   const [loginForm, setLoginForm] = useState<LoginFormState>({
     email: '',
@@ -50,6 +54,10 @@ const LoginPage = () => {
   const msClientId = (import.meta.env.VITE_MS_CLIENT_ID || '').trim();
   const isMicrosoftEnabled = Boolean(msClientId);
   const isAppleEnabled = Boolean(appleAuthUrl);
+
+  // ✅ Google habilitado solo si hay client id
+  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
+  const isGoogleEnabled = Boolean(googleClientId);
 
   const microsoftRequest: PopupRequest = useMemo(
     () => ({
@@ -106,7 +114,7 @@ const LoginPage = () => {
         direccionPrincipal: (data.direccionPrincipal ?? null) as DireccionContacto | null,
       });
 
-      navigate('/');
+      navigate('/products');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No se pudo iniciar sesion.';
       setError(message);
@@ -147,7 +155,7 @@ const LoginPage = () => {
         direccionPrincipal: null,
       });
 
-      navigate('/');
+      navigate('/products');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No se pudo completar el registro.';
       setError(message);
@@ -186,13 +194,52 @@ const LoginPage = () => {
         direccionPrincipal: (data.direccionPrincipal ?? null) as DireccionContacto | null,
       });
 
-      navigate('/');
+      navigate('/products');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No se pudo iniciar sesion con Microsoft.';
       setError(message);
     } finally {
       setIsLoadingMicrosoft(false);
     }
+  };
+
+  // ✅ Login Google (GoogleLogin component => credential => backend => user)
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    const credential = credentialResponse.credential;
+    if (!credential) {
+      setError('No se pudo obtener credencial de Google.');
+      return;
+    }
+
+    setError('');
+    setIsLoadingGoogle(true);
+
+    try {
+      // Backend valida y devuelve sesión propia
+      const data = await loginGoogle({ credential });
+
+      // Guardar en AuthContext
+      login({
+        id: data.user.id,
+        name: data.user.nombre,
+        email: data.user.email,
+        telefono: data.user.telefono ?? null,
+        ecommerceClienteId: data.user.ecommerceClienteId ?? null,
+        direccionPrincipal: (data.direccionPrincipal ?? null) as DireccionContacto | null,
+      });
+
+      navigate('/products');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo iniciar sesion con Google.';
+      setError(message);
+    } finally {
+      setIsLoadingGoogle(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Error al autenticar con Google.');
+    setIsLoadingGoogle(false);
   };
 
   return (
@@ -280,14 +327,28 @@ const LoginPage = () => {
                     {isLoadingMicrosoft ? 'Conectando...' : 'Microsoft'}
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleProviderLogin(appleAuthUrl)}
-                    disabled={!isAppleEnabled}
-                    className="flex items-center justify-center gap-2 rounded-full border border-white/10 bg-black px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-[#0f0f0f] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Apple
-                  </button>
+                  {isGoogleEnabled ? (
+                    <div className="flex items-center justify-center w-full [&>div]:w-full [&_iframe]:!w-full">
+                      <GoogleLogin
+                        onSuccess={handleGoogleSuccess}
+                        onError={handleGoogleError}
+                        useOneTap={false}
+                        theme="filled_blue"
+                        size="large"
+                        text="signin_with"
+                        shape="pill"
+                        width="100%"
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="flex items-center justify-center gap-2 rounded-full border border-white/10 bg-gray-500 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Google
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.32em] text-white/40">
