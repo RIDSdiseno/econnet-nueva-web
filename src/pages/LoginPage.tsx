@@ -47,13 +47,9 @@ const LoginPage = () => {
     confirmPassword: '',
   });
 
-  // Apple (si lo usas por URL)
-  const appleAuthUrl = (import.meta.env.VITE_APPLE_AUTH_URL || '').trim();
-
   // ✅ Microsoft habilitado solo si hay client id
   const msClientId = (import.meta.env.VITE_MS_CLIENT_ID || '').trim();
   const isMicrosoftEnabled = Boolean(msClientId);
-  const isAppleEnabled = Boolean(appleAuthUrl);
 
   // ✅ Google habilitado solo si hay client id
   const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
@@ -68,14 +64,6 @@ const LoginPage = () => {
   );
 
   const providerTitle = activeTab === 'login' ? 'Acceso rapido' : 'Registro rapido';
-
-  const handleProviderLogin = (url: string) => {
-    if (!url) {
-      setError('Acceso externo no disponible por ahora.');
-      return;
-    }
-    window.location.assign(url);
-  };
 
   const handleLoginChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -177,9 +165,7 @@ const LoginPage = () => {
       const result = await instance.loginPopup(microsoftRequest);
 
       const idToken = result.idToken;
-      if (!idToken) {
-        throw new Error('No se pudo obtener idToken de Microsoft.');
-      }
+      if (!idToken) throw new Error('No se pudo obtener idToken de Microsoft.');
 
       // 2) Backend valida y devuelve sesión propia
       const data = await loginMicrosoft({ idToken });
@@ -203,7 +189,7 @@ const LoginPage = () => {
     }
   };
 
-  // ✅ Login Google (GoogleLogin component => credential => backend => user)
+  // ✅ Login Google (GoogleLogin => credential => backend => user)
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     const credential = credentialResponse.credential;
     if (!credential) {
@@ -215,10 +201,8 @@ const LoginPage = () => {
     setIsLoadingGoogle(true);
 
     try {
-      // Backend valida y devuelve sesión propia
       const data = await loginGoogle({ credential });
 
-      // Guardar en AuthContext
       login({
         id: data.user.id,
         name: data.user.nombre,
@@ -301,7 +285,10 @@ const LoginPage = () => {
               </p>
             </div>
 
-            <form className="mt-8 space-y-6" onSubmit={activeTab === 'login' ? handleLoginSubmit : handleRegisterSubmit}>
+            <form
+              className="mt-8 space-y-6"
+              onSubmit={activeTab === 'login' ? handleLoginSubmit : handleRegisterSubmit}
+            >
               {error && (
                 <div className="rounded-2xl border border-[#5a1b1b] bg-[#3a1414] px-4 py-3 text-sm text-[#F2B2B2]">
                   {error}
@@ -328,17 +315,26 @@ const LoginPage = () => {
                   </button>
 
                   {isGoogleEnabled ? (
-                    <div className="flex items-center justify-center w-full [&>div]:w-full [&_iframe]:!w-full">
-                      <GoogleLogin
-                        onSuccess={handleGoogleSuccess}
-                        onError={handleGoogleError}
-                        useOneTap={false}
-                        theme="filled_blue"
-                        size="large"
-                        text="signin_with"
-                        shape="pill"
-                        width="100%"
-                      />
+                    <div className="relative w-full">
+                      {/* Overlay para reflejar loading (GoogleLogin no deja cambiar texto fácil) */}
+                      {isLoadingGoogle && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-full bg-black/40 text-xs font-semibold uppercase tracking-[0.2em] text-white">
+                          Conectando...
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-center w-full [&>div]:w-full [&_iframe]:!w-full">
+                        <GoogleLogin
+                          onSuccess={handleGoogleSuccess}
+                          onError={handleGoogleError}
+                          useOneTap={false}
+                          theme="filled_blue"
+                          size="large"
+                          text="signin_with"
+                          shape="pill"
+                          width="100%"
+                        />
+                      </div>
                     </div>
                   ) : (
                     <button
