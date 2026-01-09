@@ -1,14 +1,24 @@
-import { useEffect, useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useQuoteHistory } from '../context/QuoteHistoryContext';
+import SearchModal from './SearchModal';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { totalQuantity } = useCart();
+  const { totalQuantity, items } = useCart();
   const { user, isAuthenticated, logout } = useAuth();
+  const { quotes } = useQuoteHistory();
   const [isLargeText, setIsLargeText] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+  const cartButtonDesktopRef = useRef<HTMLButtonElement | null>(null);
+  const cartButtonMobileRef = useRef<HTMLButtonElement | null>(null);
+  const cartPopoverRef = useRef<HTMLDivElement | null>(null);
   const desktopNavClass = ({ isActive }: { isActive: boolean }) =>
     `rounded-full px-3 py-1 transition ${
       isActive ? 'bg-[#F7EAEA] text-[#B01010]' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -17,19 +27,46 @@ const Header = () => {
     `rounded-lg px-3 py-2 transition ${
       isActive ? 'bg-[#F7EAEA] text-[#B01010]' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
     }`;
-  const cartClass = ({ isActive }: { isActive: boolean }) =>
+  const cartButtonClass = (isActive: boolean) =>
     `relative flex h-11 w-11 items-center justify-center rounded-full transition ${
       isActive ? 'bg-[#B01010] ring-2 ring-[#E04040]/60' : 'bg-[#1b0b0b] hover:bg-[#2a0d0d]'
     }`;
+  const cartNavClass = ({ isActive }: { isActive: boolean }) =>
+    `rounded-full border border-[#F0E0E0] px-4 py-1.5 text-sm font-semibold transition ${
+      isActive ? 'bg-[#F7EAEA] text-[#B01010]' : 'text-[#B01010] hover:bg-[#F7EAEA]'
+    }`;
+  const searchButtonClass =
+    'inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-[#E04040]/40';
   const ctaClass = ({ isActive }: { isActive: boolean }) =>
     `rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[0_12px_24px_rgba(176,16,16,0.25)] transition ${
       isActive ? 'bg-[#D03030]' : 'bg-[#B01010] hover:bg-[#D03030]'
     }`;
   const mobileCtaClass = ({ isActive }: { isActive: boolean }) => `flex-1 text-center ${ctaClass({ isActive })}`;
   const displayName = user?.name ?? 'Usuario';
+  const hasQuotes = quotes.length > 0;
+  const isCartActive = location.pathname === '/cart';
+  const totalCarrito = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const previewItems = items.slice(0, 3);
+  const remainingItems = items.length - previewItems.length;
+  const openSearch = () => {
+    setIsSearchOpen(true);
+    setIsCartOpen(false);
+    setIsMenuOpen(false);
+  };
+
+  const requestLogout = () => {
+    setIsLogoutOpen(true);
+    setIsMenuOpen(false);
+    setIsCartOpen(false);
+    setIsSearchOpen(false);
+  };
+
   const handleLogout = () => {
     logout();
+    setIsLogoutOpen(false);
     setIsMenuOpen(false);
+    setIsSearchOpen(false);
+    setIsCartOpen(false);
     navigate('/login', { replace: true });
   };
 
@@ -59,8 +96,64 @@ const Header = () => {
     }
   }, [isLargeText]);
 
+  useEffect(() => {
+    setIsCartOpen(false);
+    setIsSearchOpen(false);
+    setIsLogoutOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isCartOpen) {
+      return;
+    }
+
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (
+        cartButtonDesktopRef.current?.contains(target) ||
+        cartButtonMobileRef.current?.contains(target) ||
+        cartPopoverRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setIsCartOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsCartOpen(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handleClick);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('mousedown', handleClick);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isCartOpen]);
+
+  useEffect(() => {
+    if (!isLogoutOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsLogoutOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isLogoutOpen]);
+
   return (
-    <header className="sticky top-0 z-50 shadow-lg">
+    <header className="sticky top-0 z-50 shadow-lg relative">
       <div className="bg-gradient-to-r from-[#1b0b0b] via-[#2a1515] to-[#1b0b0b] text-[#F0E0E0]">
         <div className="container mx-auto px-4">
           <div className="flex flex-col gap-2 py-2.5 text-[0.65rem] uppercase tracking-[0.2em] sm:flex-row sm:items-center sm:justify-between sm:tracking-[0.28em]">
@@ -145,25 +238,20 @@ const Header = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between gap-4 py-4">
             <Link to="/" className="group flex items-center gap-3" aria-label="COVASA">
-              <div className="flex h-14 w-32 items-center justify-center overflow-hidden rounded-xl border-2 border-slate-200/80 bg-gradient-to-br from-white to-slate-50 shadow-md transition-all duration-300 group-hover:border-[#E04040]/30 group-hover:shadow-lg group-hover:scale-105 sm:h-16 sm:w-36 p-2">
+              <div className="flex h-16 w-36 items-center justify-center overflow-hidden rounded-xl border-2 border-slate-200/80 bg-gradient-to-br from-white to-slate-50 shadow-md transition-all duration-300 group-hover:border-[#E04040]/30 group-hover:shadow-lg group-hover:scale-105 sm:h-20 sm:w-44 p-1">
                 <img
                   src="/img/3.png"
                   alt="COVASA"
-                  className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-110"
+                  className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.08]"
                 />
               </div>
             </Link>
 
             <div className="hidden lg:flex flex-1 items-center gap-3">
-              <div className="relative flex-1">
-                <input
-                  type="search"
-                  placeholder="Buscar materiales o marcas"
-                  className="w-full rounded-full border border-slate-200 bg-white/80 px-4 py-2.5 pr-10 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040]"
-                />
+              <button type="button" onClick={openSearch} className={searchButtonClass}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                  className="h-4 w-4 text-slate-500"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -172,7 +260,8 @@ const Header = () => {
                   <circle cx="11" cy="11" r="7" />
                   <path d="M20 20l-3.5-3.5" />
                 </svg>
-              </div>
+                Buscar
+              </button>
               <NavLink to="/cotizar" className={ctaClass}>
                 Cotizar
               </NavLink>
@@ -191,6 +280,14 @@ const Header = () => {
               <NavLink to="/contact" className={desktopNavClass}>
                 Contacto
               </NavLink>
+              <NavLink to="/cart" className={cartNavClass}>
+                Carrito
+              </NavLink>
+              {hasQuotes && (
+                <NavLink to="/mis-cotizaciones" className={desktopNavClass}>
+                  Mis cotizaciones
+                </NavLink>
+              )}
               {isAuthenticated ? (
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2.5 rounded-full border border-slate-200/80 bg-gradient-to-r from-white to-slate-50/50 px-4 py-2 text-sm text-slate-700 shadow-sm">
@@ -204,7 +301,7 @@ const Header = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={handleLogout}
+                    onClick={requestLogout}
                     className="rounded-full border border-[#E04040]/30 bg-[#E04040]/5 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#E04040]/10 hover:border-[#E04040]/50 hover:shadow-md"
                   >
                     Cerrar sesión
@@ -215,27 +312,37 @@ const Header = () => {
                   Iniciar sesión
                 </NavLink>
               )}
-              <NavLink to="/cart" className={cartClass}>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
+              <div className="relative">
+                <button
+                  ref={cartButtonDesktopRef}
+                  type="button"
+                  onClick={() => setIsCartOpen((prev) => !prev)}
+                  aria-expanded={isCartOpen}
+                  aria-haspopup="dialog"
+                  className={cartButtonClass(isCartActive)}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                  />
-                </svg>
-                {totalQuantity > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#E04040] text-[0.65rem] font-bold text-white shadow-md animate-pulse">
-                    {totalQuantity}
-                  </span>
-                )}
-              </NavLink>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+                  {totalQuantity > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#E04040] text-[0.65rem] font-bold text-white shadow-md animate-pulse">
+                      {totalQuantity}
+                    </span>
+                  )}
+                </button>
+
+              </div>
             </div>
 
             <button
@@ -268,6 +375,14 @@ const Header = () => {
                 <NavLink to="/contact" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
                   Contacto
                 </NavLink>
+                <NavLink to="/cart" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
+                  Carrito
+                </NavLink>
+                {hasQuotes && (
+                  <NavLink to="/mis-cotizaciones" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
+                    Mis cotizaciones
+                  </NavLink>
+                )}
                 {!isAuthenticated && (
                   <NavLink to="/login" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
                     Iniciar sesión
@@ -291,7 +406,7 @@ const Header = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={handleLogout}
+                    onClick={requestLogout}
                     className="mt-4 w-full rounded-full border border-[#F0E0E0] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#F7EAEA]"
                   >
                     Cerrar sesión
@@ -300,18 +415,41 @@ const Header = () => {
               )}
 
               <div className="mt-4">
-                <input
-                  type="search"
-                  placeholder="Buscar materiales o marcas"
-                  className="w-full rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040]"
-                />
+                <button
+                  type="button"
+                  onClick={openSearch}
+                  className={`${searchButtonClass} w-full justify-center`}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 text-slate-500"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M20 20l-3.5-3.5" />
+                  </svg>
+                  Buscar productos
+                </button>
               </div>
 
               <div className="mt-4 flex items-center gap-3">
                 <NavLink to="/cotizar" className={mobileCtaClass} onClick={() => setIsMenuOpen(false)}>
                   Cotizar
                 </NavLink>
-                <NavLink to="/cart" className={cartClass} onClick={() => setIsMenuOpen(false)}>
+                <button
+                  ref={cartButtonMobileRef}
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setIsCartOpen((prev) => !prev);
+                  }}
+                  aria-expanded={isCartOpen}
+                  aria-haspopup="dialog"
+                  className={cartButtonClass(isCartActive)}
+                >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-5 w-5"
@@ -331,12 +469,90 @@ const Header = () => {
                       {totalQuantity}
                     </span>
                   )}
-                </NavLink>
+                </button>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {isCartOpen && (
+        <div
+          ref={cartPopoverRef}
+          role="dialog"
+          aria-modal="false"
+          className="modal-panel absolute right-4 top-full mt-3 z-[60] w-[90vw] max-w-sm rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-[0_24px_60px_rgba(15,23,32,0.18)] backdrop-blur-xl"
+        >
+          <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Carrito</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">{items.length} items</p>
+          {items.length > 0 ? (
+            <div className="mt-4 space-y-2 text-sm text-slate-700">
+              {previewItems.map((item) => (
+                <div key={item.productId} className="flex items-center justify-between gap-3">
+                  <span className="truncate">{item.name}</span>
+                  <span className="text-xs text-slate-400">x{item.quantity}</span>
+                </div>
+              ))}
+              {remainingItems > 0 && <p className="text-xs text-slate-400">y {remainingItems} mas</p>}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-slate-600">
+              Tu carrito esta vacio. Agrega productos para ver el resumen.
+            </p>
+          )}
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+              <p className="uppercase tracking-[0.2em] text-slate-400">Total</p>
+              <p className="mt-1 font-semibold text-slate-900">
+                CLP {totalCarrito.toLocaleString('es-CL')}
+              </p>
+            </div>
+            <Link
+              to="/cart"
+              onClick={() => setIsCartOpen(false)}
+              className="rounded-full bg-[#B01010] px-4 py-2 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(176,16,16,0.25)] transition hover:bg-[#D03030]"
+            >
+              Ir al carrito
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+
+      {isLogoutOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 py-8" onClick={() => setIsLogoutOpen(false)}>
+          <div className="modal-backdrop fixed inset-0 bg-black/40 backdrop-blur-sm"></div>
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="modal-panel relative z-10 w-full max-w-md rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-[0_24px_60px_rgba(15,23,32,0.2)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Cerrar sesion</p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-900">Confirmar cierre</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Estas seguro de cerrar sesion? Se guardara tu carrito en este dispositivo.
+            </p>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setIsLogoutOpen(false)}
+                className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex-1 rounded-full bg-[#B01010] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#D03030]"
+              >
+                Cerrar sesion
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

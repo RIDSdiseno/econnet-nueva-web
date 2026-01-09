@@ -433,6 +433,39 @@ export type CotizacionPayload = {
   } | null;
 };
 
+export type CotizacionDetalleItem = {
+  id: string;
+  productoId: string;
+  descripcionSnapshot: string;
+  unidadSnapshot?: string | null;
+  skuSnapshot?: string | null;
+  cantidad: number;
+  precioUnitarioNetoSnapshot: number;
+  subtotalNetoSnapshot: number;
+  ivaPctSnapshot: number;
+  ivaMontoSnapshot: number;
+  totalSnapshot: number;
+  observacion?: string | null;
+};
+
+export type CotizacionDetalle = {
+  id: string;
+  codigo: string;
+  origen?: string | null;
+  estado: string;
+  createdAt: string;
+  nombreContacto: string;
+  email?: string | null;
+  telefono?: string | null;
+  empresa?: string | null;
+  rut?: string | null;
+  observaciones?: string | null;
+  subtotalNeto: number;
+  iva: number;
+  total: number;
+  items: CotizacionDetalleItem[];
+};
+
 export const crearCotizacion = async (payload: CotizacionPayload) => {
   const response = await fetch(`${API_BASE_URL}/ecommerce/cotizaciones`, {
     method: 'POST',
@@ -448,5 +481,17 @@ export const crearCotizacion = async (payload: CotizacionPayload) => {
     codigo: string;
     total: number;
     estado: string;
+    createdAt?: string;
   }>(response);
+};
+
+export const obtenerCotizacionDetalle = async (id: string) => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/cotizaciones/${id}`, {
+    headers: {
+      Accept: 'application/json',
+      ...authHeaders(),
+    },
+  });
+
+  return parseResponse<CotizacionDetalle>(response);
 };

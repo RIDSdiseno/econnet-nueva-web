@@ -212,7 +212,7 @@ const HomePage = () => {
           {categories.map((category, index) => (
             <div
               key={category.title}
-              className="fade-up group rounded-3xl border border-slate-200/80 bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,32,0.08)]"
+              className="fade-up zoom-card group rounded-3xl border border-slate-200/80 bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,32,0.08)]"
               style={{ animationDelay: `${index * 120}ms` }}
             >
               <div className="flex items-center justify-between">

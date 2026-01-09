@@ -18,7 +18,7 @@ const ContactPage = () => {
 
       <section className="container mx-auto px-4">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-          <div className="space-y-6 rounded-3xl border border-[#F0E0E0] bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,32,0.08)]">
+          <div className="zoom-card space-y-6 rounded-3xl border border-[#F0E0E0] bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,32,0.08)]">
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-[0.32em] text-[#B01010]">Covasa Chile</p>
               <h2 className="text-2xl font-semibold text-slate-900">Canales de contacto</h2>
@@ -47,7 +47,7 @@ const ContactPage = () => {
             </div>
           </div>
 
-          <div className="space-y-6 rounded-3xl border border-[#F0E0E0] bg-white/80 p-6">
+          <div className="zoom-card space-y-6 rounded-3xl border border-[#F0E0E0] bg-white/80 p-6">
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-[0.32em] text-[#B01010]">Incluye</p>
               <h3 className="text-xl font-semibold text-slate-900">Soporte especializado</h3>

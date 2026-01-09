@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Product } from '../data/products';
 import { useProductos } from '../hooks/useProductos';
 import { crearCotizacion } from '../services/api';
+import ModalSuccessCotizacion from '../components/ModalSuccessCotizacion';
+import { useQuoteHistory } from '../context/QuoteHistoryContext';
 
 type QuoteItem = {
   id: string;
@@ -20,6 +23,13 @@ type QuoteResult = {
   codigo: string;
   total: number;
   estado: string;
+  createdAt?: string | null;
+};
+
+type QuoteFormErrors = {
+  name?: string;
+  contact?: string;
+  items?: string;
 };
 
 const formatCurrency = (value: number) => `CLP ${value.toLocaleString('es-CL')}`;
@@ -54,18 +64,50 @@ const leerUtm = () => {
   return Object.keys(utm).length > 0 ? utm : null;
 };
 
+const detalleUrlTemplate = (import.meta.env as Record<string, string | undefined>)[
+  'VITE_COTIZACION_DETALLE_URL'
+];
+const defaultDetalleUrlTemplate = '/mis-cotizaciones/:id';
+
+const buildDetalleUrl = (resultado: QuoteResult) => {
+  const template = detalleUrlTemplate ?? defaultDetalleUrlTemplate;
+  return template.replace(':id', resultado.id).replace(':codigo', resultado.codigo || resultado.id);
+};
+
 const QuotePage = () => {
+  const navigate = useNavigate();
+  const { upsertQuote } = useQuoteHistory();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const { productos, cargando, error: catalogoError } = useProductos({ search: searchQuery, limit: 200 });
   const [submitted, setSubmitted] = useState<QuoteResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<QuoteFormErrors>({});
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [successStage, setSuccessStage] = useState<'confirming' | 'confirmed'>('confirming');
   const [items, setItems] = useState<QuoteItem[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const totalNet = items.reduce((acc, item) => acc + item.cantidad * item.precioUnitario, 0);
-  const canAddItem = Boolean(selectedProductId);
+  const canAddItem = Boolean(selectedProductId) && !submitting;
   const isSubmitDisabled = items.length === 0 || submitting;
+  const hasContactError = Boolean(formErrors.contact);
+  const detalleUrl = submitted ? buildDetalleUrl(submitted) : null;
+
+  const handleCloseSuccess = () => setSuccessOpen(false);
+
+  const handleViewSuccess = () => {
+    if (!detalleUrl) {
+      return;
+    }
+
+    setSuccessOpen(false);
+    if (/^https?:\/\//i.test(detalleUrl)) {
+      window.location.assign(detalleUrl);
+      return;
+    }
+    navigate(detalleUrl);
+  };
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -75,7 +117,35 @@ const QuotePage = () => {
     return () => clearTimeout(handle);
   }, [searchTerm]);
 
+  useEffect(() => {
+    if (!successOpen) {
+      return;
+    }
+
+    setSuccessStage('confirming');
+    const timer = setTimeout(() => setSuccessStage('confirmed'), 700);
+
+    return () => clearTimeout(timer);
+  }, [successOpen]);
+
+  const clearFieldError = (key: keyof QuoteFormErrors) => {
+    setFormErrors((prev) => {
+      if (!prev[key]) {
+        return prev;
+      }
+      return { ...prev, [key]: undefined };
+    });
+  };
+
+  const clearSubmitError = () => {
+    if (submitError) {
+      setSubmitError(null);
+    }
+  };
+
   const handleItemChange = (id: string, updates: Partial<QuoteItem>) => {
+    clearFieldError('items');
+    clearSubmitError();
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)));
   };
 
@@ -110,6 +180,9 @@ const QuotePage = () => {
       return;
     }
 
+    clearFieldError('items');
+    clearSubmitError();
+
     setItems((prev) => {
       const existing = prev.find((item) => item.productoId === product.id);
       if (existing) {
@@ -122,16 +195,19 @@ const QuotePage = () => {
   };
 
   const handleRemoveItem = (id: string) => {
+    clearFieldError('items');
+    clearSubmitError();
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (items.length === 0 || submitting) {
+    if (submitting) {
       return;
     }
 
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     const nombre = String(formData.get('name') ?? '').trim();
     const empresa = String(formData.get('company') ?? '').trim();
     const email = String(formData.get('email') ?? '').trim();
@@ -141,19 +217,40 @@ const QuotePage = () => {
     const ubicacion = String(formData.get('location') ?? '').trim();
     const mensaje = String(formData.get('message') ?? '').trim();
 
+    const nextErrors: QuoteFormErrors = {};
+
     if (!nombre) {
-      setSubmitError('El nombre es obligatorio.');
-      return;
+      nextErrors.name = 'El nombre es obligatorio.';
     }
 
     if (!email && !telefono) {
-      setSubmitError('Email o telefono es obligatorio.');
+      nextErrors.contact = 'Email o teléfono es obligatorio.';
+    }
+
+    if (items.length === 0) {
+      nextErrors.items = 'Agrega al menos un item.';
+    } else {
+      const itemSinProducto = items.find((item) => !item.productoId);
+      if (itemSinProducto) {
+        nextErrors.items = 'Selecciona un producto para cada item.';
+      }
+      const itemCantidadInvalida = items.find((item) => item.cantidad < 1);
+      if (!nextErrors.items && itemCantidadInvalida) {
+        nextErrors.items = 'La cantidad mínima es 1.';
+      }
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFormErrors(nextErrors);
+      setSubmitError('Revisa los campos marcados.');
       return;
     }
 
+    setFormErrors({});
     setSubmitting(true);
     setSubmitError(null);
     setSubmitted(null);
+    setSuccessOpen(false);
 
     try {
       const resultado = await crearCotizacion({
@@ -179,11 +276,23 @@ const QuotePage = () => {
         },
       });
 
-      setSubmitted(resultado);
+      const createdAt = resultado.createdAt ?? new Date().toISOString();
+      setSubmitted({ ...resultado, createdAt });
+      upsertQuote({
+        id: resultado.id,
+        codigo: resultado.codigo,
+        total: resultado.total,
+        estado: resultado.estado,
+        createdAt,
+        nombreContacto: nombre,
+        itemsCount: items.length,
+      });
+      setSuccessOpen(true);
       setItems([]);
       setSelectedProductId('');
       setSearchTerm('');
-      event.currentTarget.reset();
+      setSearchQuery('');
+      form.reset();
     } catch (err) {
       const mensajeError = err instanceof Error ? err.message : 'No se pudo enviar la cotizacion.';
       setSubmitError(mensajeError);
@@ -213,6 +322,7 @@ const QuotePage = () => {
           <form
             className="space-y-8 w-full min-w-0 rounded-3xl border border-[#F0E0E0] bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,32,0.08)] sm:p-8"
             onSubmit={handleSubmit}
+            aria-busy={submitting}
           >
             <div className="relative overflow-hidden rounded-2xl bg-[#1b0b0b] px-5 py-5 text-white shadow-[0_18px_40px_rgba(10,0,0,0.28)] sm:px-6 sm:py-6">
               <div className="absolute inset-0 hero-grid opacity-10"></div>
@@ -225,14 +335,11 @@ const QuotePage = () => {
               </div>
             </div>
 
-            {submitted && (
-              <div className="rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-3 text-sm text-[#B01010]">
-                Cotizacion enviada. Folio {submitted.codigo || submitted.id}. Total {formatCurrency(submitted.total)}.
-              </div>
-            )}
-
             {submitError && (
-              <div className="rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-3 text-sm text-[#B01010]">
+              <div
+                role="alert"
+                className="rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-3 text-sm text-[#B01010]"
+              >
                 {submitError}
               </div>
             )}
@@ -265,9 +372,17 @@ const QuotePage = () => {
                       name="name"
                       required
                       placeholder="Nombre y apellido"
-                      className="rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300"
+                      aria-invalid={Boolean(formErrors.name)}
+                      onInput={() => {
+                        clearFieldError('name');
+                        clearSubmitError();
+                      }}
+                      className={`rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300 ${
+                        formErrors.name ? 'border-[#B01010] focus:ring-[#B01010]' : ''
+                      }`}
                     />
                   </div>
+                  {formErrors.name && <span className="text-xs text-[#B01010]">{formErrors.name}</span>}
                 </label>
                 <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
                   Empresa
@@ -297,7 +412,14 @@ const QuotePage = () => {
                       type="email"
                       name="email"
                       placeholder="correo@empresa.cl"
-                      className="rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300"
+                      aria-invalid={hasContactError}
+                      onInput={() => {
+                        clearFieldError('contact');
+                        clearSubmitError();
+                      }}
+                      className={`rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300 ${
+                        hasContactError ? 'border-[#B01010] focus:ring-[#B01010]' : ''
+                      }`}
                     />
                   </div>
                 </label>
@@ -313,7 +435,14 @@ const QuotePage = () => {
                       type="tel"
                       name="phone"
                       placeholder="+56 9 1234 5678"
-                      className="rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300"
+                      aria-invalid={hasContactError}
+                      onInput={() => {
+                        clearFieldError('contact');
+                        clearSubmitError();
+                      }}
+                      className={`rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300 ${
+                        hasContactError ? 'border-[#B01010] focus:ring-[#B01010]' : ''
+                      }`}
                     />
                   </div>
                 </label>
@@ -377,6 +506,9 @@ const QuotePage = () => {
                   </div>
                 </label>
               </div>
+              {formErrors.contact && (
+                <p className="text-xs text-[#B01010]">{formErrors.contact}</p>
+              )}
             </div>
 
             <div className="space-y-5">
@@ -390,6 +522,11 @@ const QuotePage = () => {
                   </p>
                 </div>
               </div>
+              {formErrors.items && (
+                <div className="rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-3 text-sm text-[#B01010]">
+                  {formErrors.items}
+                </div>
+              )}
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-slate-600 sm:max-w-xs">
@@ -576,12 +713,20 @@ const QuotePage = () => {
                 disabled={isSubmitDisabled}
                 className="rounded-full bg-[#B01010] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(176,16,16,0.3)] transition hover:bg-[#D03030] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {submitting ? 'Enviando...' : 'Enviar cotizacion'}
+                {submitting ? 'Creando...' : 'Enviar cotizacion'}
               </button>
             </div>
           </form>
         </div>
       </section>
+
+      <ModalSuccessCotizacion
+        open={successOpen}
+        stage={successStage}
+        data={submitted}
+        onClose={handleCloseSuccess}
+        onView={detalleUrl ? handleViewSuccess : undefined}
+      />
     </div>
   );
 };

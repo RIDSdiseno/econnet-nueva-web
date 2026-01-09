@@ -4,13 +4,16 @@
 
 .font-display {
   font-family: "Teko", "Sora", sans-serif;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
+  text-wrap: balance;
 }
 
 .hero-surface {
   position: relative;
   overflow: hidden;
   background: linear-gradient(140deg, #1b0b0b 0%, #3a1010 55%, #6a1b1b 100%);
+  background-size: 160% 160%;
+  animation: heroGradient 18s ease-in-out infinite;
 }
 
 .hero-surface::before {
@@ -22,6 +25,7 @@
     radial-gradient(circle at 80% 10%, rgba(176, 16, 16, 0.4), transparent 50%),
     radial-gradient(circle at 90% 80%, rgba(255, 255, 255, 0.08), transparent 40%);
   opacity: 0.9;
+  animation: heroGlow 18s ease-in-out infinite;
 }
 
 .hero-grid {
@@ -29,13 +33,28 @@
     linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
   background-size: 48px 48px;
+  background-position: 0 0, 0 0;
+  animation: gridDrift 28s linear infinite;
 }
 
 .glass-panel {
+  position: relative;
   background: rgba(255, 255, 255, 0.78);
   border: 1px solid rgba(255, 255, 255, 0.6);
   box-shadow: 0 18px 40px rgba(15, 23, 32, 0.12);
   backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+
+.glass-panel::after {
+  content: "";
+  position: absolute;
+  inset: -120% -80%;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  opacity: 0;
+  transform: translateX(-120%);
+  animation: glassSheen 14s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .shadow-lift {
@@ -43,7 +62,8 @@
 }
 
 .fade-up {
-  animation: fadeUp 0.75s ease both;
+  animation: fadeUp 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
 }
 
 .float-slow {
@@ -51,11 +71,47 @@
 }
 
 .page-transition {
-  animation: pageFade 0.45s ease both;
+  animation: pageFade 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
 }
 
 .card-reveal {
-  animation: cardIn 0.5s ease both;
+  animation: cardIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+.zoom-card {
+  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+  transform: translateZ(0);
+  touch-action: manipulation;
+  will-change: transform;
+}
+
+@media (hover: hover) {
+  .zoom-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 24px 55px rgba(15, 23, 32, 0.16);
+  }
+}
+
+.zoom-card:focus-within {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 22px 50px rgba(15, 23, 32, 0.14);
+}
+
+.zoom-card:active {
+  transform: scale(0.99);
+}
+
+@media (hover: none) {
+  .zoom-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .zoom-card:active {
+    transform: scale(0.98);
+    box-shadow: 0 18px 42px rgba(15, 23, 32, 0.16);
+  }
 }
 
 .line-clamp-2 {
@@ -79,7 +135,12 @@
   .page-transition,
   .card-reveal,
   .modal-backdrop,
-  .modal-panel {
+  .modal-panel,
+  .hero-surface,
+  .hero-surface::before,
+  .hero-grid,
+  .glass-panel::after,
+  .zoom-card {
     animation: none;
   }
 }
@@ -87,7 +148,7 @@
 @keyframes fadeUp {
   from {
     opacity: 0;
-    transform: translateY(18px);
+    transform: translateY(22px);
   }
   to {
     opacity: 1;
@@ -98,20 +159,24 @@
 @keyframes pageFade {
   from {
     opacity: 0;
+    transform: translateY(12px);
+    filter: blur(8px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
   }
 }
 
 @keyframes cardIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(14px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -141,6 +206,53 @@
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-10px);
+    transform: translateY(-12px);
+  }
+}
+
+@keyframes heroGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes heroGlow {
+  0%,
+  100% {
+    opacity: 0.82;
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: translate3d(1%, -1%, 0);
+  }
+}
+
+@keyframes gridDrift {
+  from {
+    background-position: 0 0, 0 0;
+  }
+  to {
+    background-position: 64px 64px, -64px -64px;
+  }
+}
+
+@keyframes glassSheen {
+  0% {
+    opacity: 0;
+    transform: translateX(-120%);
+  }
+  40% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(120%);
   }
 }

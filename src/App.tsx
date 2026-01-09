@@ -6,12 +6,15 @@ import ProductsPage from './pages/ProductsPage';
 import ContactPage from './pages/ContactPage';
 import CartPage from './pages/CartPage';
 import QuotePage from './pages/QuotePage';
+import MyQuotesPage from './pages/MyQuotesPage';
+import QuoteDetailPage from './pages/QuoteDetailPage';
 import LoginPage from './pages/LoginPage';
 import MercadoPagoReturnPage from './pages/MercadoPagoReturnPage';
 import TransbankReturnPage from './pages/TransbankReturnPage';
 import NosotrosPage from './pages/NosotrosPage';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
+import { QuoteHistoryProvider } from './context/QuoteHistoryContext';
 import './App.css';
 
 const AppLayout = () => {
@@ -28,6 +31,8 @@ const AppLayout = () => {
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/nosotros" element={<NosotrosPage />} />
             <Route path="/cotizar" element={<QuotePage />} />
+            <Route path="/mis-cotizaciones" element={<MyQuotesPage />} />
+            <Route path="/mis-cotizaciones/:id" element={<QuoteDetailPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/pago/mercadopago" element={<MercadoPagoReturnPage />} />
@@ -44,11 +49,13 @@ const AppLayout = () => {
 function App() {
   return (
     <AuthProvider>
-      <CartProvider>
-        <Router>
-          <AppLayout />
-        </Router>
-      </CartProvider>
+      <QuoteHistoryProvider>
+        <CartProvider>
+          <Router>
+            <AppLayout />
+          </Router>
+        </CartProvider>
+      </QuoteHistoryProvider>
     </AuthProvider>
   );
 }
