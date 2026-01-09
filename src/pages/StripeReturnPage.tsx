@@ -1,17 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { obtenerEstadoMercadoPago, type MercadoPagoEstado } from '../services/api';
+import { obtenerEstadoStripe, type StripeEstado } from '../services/api';
 
 type EstadoPago = 'cargando' | 'aprobado' | 'pendiente' | 'rechazado' | 'error';
-
-type DatosMercadoPago = {
-  status: string | null;
-  paymentId: string | null;
-  preferenceId: string | null;
-  merchantOrderId: string | null;
-  externalReference: string | null;
-};
 
 const formatCurrency = (value: number) => `CLP ${value.toLocaleString('es-CL')}`;
 
@@ -22,18 +14,11 @@ const formatDateTime = (value?: string) => {
   return date.toLocaleString('es-CL');
 };
 
-const resolverEstadoDesdeResultado = (resultado?: string, status?: string | null): EstadoPago => {
+const resolverEstadoDesdeResultado = (resultado?: string): EstadoPago => {
   const slug = (resultado || '').toLowerCase();
-  const rawStatus = (status || '').toLowerCase();
-
   if (slug === 'success') return 'aprobado';
   if (slug === 'pending') return 'pendiente';
   if (slug === 'failure') return 'rechazado';
-
-  if (rawStatus === 'approved') return 'aprobado';
-  if (rawStatus === 'pending' || rawStatus === 'in_process' || rawStatus === 'in_mediation') return 'pendiente';
-  if (rawStatus === 'rejected' || rawStatus === 'cancelled' || rawStatus === 'charged_back') return 'rechazado';
-
   return 'error';
 };
 
@@ -45,35 +30,33 @@ const resolverEstadoInterno = (estado?: string | null): EstadoPago => {
   return 'error';
 };
 
-const MercadoPagoReturnPage = () => {
+const StripeReturnPage = () => {
   const { clearCart } = useCart();
-  const location = useLocation();
   const { resultado } = useParams<{ resultado?: string }>();
+  const location = useLocation();
   const [estado, setEstado] = useState<EstadoPago>('cargando');
-  const [mensaje, setMensaje] = useState('Confirmando tu pago con Mercado Pago...');
+  const [mensaje, setMensaje] = useState('Confirmando tu pago con Stripe...');
   const [detalle, setDetalle] = useState<string | null>(null);
-  const [resumen, setResumen] = useState<MercadoPagoEstado | null>(null);
-  const [confirmacion, setConfirmacion] = useState<{ destino: string; titulo: string } | null>(null);
+  const [resumen, setResumen] = useState<StripeEstado | null>(null);
+  const [confirmacion, setConfirmacion] = useState<{ destino: string; titulo: string } | null>(
+    null,
+  );
 
-  const datos = useMemo<DatosMercadoPago>(() => {
-    const params = new URLSearchParams(location.search);
+  const params = useMemo(() => {
+    const search = new URLSearchParams(location.search);
     return {
-      status: params.get('status'),
-      paymentId: params.get('payment_id'),
-      preferenceId: params.get('preference_id'),
-      merchantOrderId: params.get('merchant_order_id'),
-      externalReference: params.get('external_reference'),
+      pedidoId: search.get('pedidoId'),
+      paymentIntentId: search.get('payment_intent'),
     };
   }, [location.search]);
 
   const estadoFallback = useMemo(
-    () => resolverEstadoDesdeResultado(resultado, datos.status),
-    [resultado, datos.status],
+    () => resolverEstadoDesdeResultado(resultado),
+    [resultado],
   );
 
   useEffect(() => {
-    const identificador = datos.paymentId || datos.externalReference || datos.preferenceId;
-    if (!identificador) {
+    if (!params.pedidoId && !params.paymentIntentId) {
       setEstado(estadoFallback);
       setMensaje(
         estadoFallback === 'aprobado'
@@ -92,13 +75,12 @@ const MercadoPagoReturnPage = () => {
 
     let activo = true;
     setEstado('cargando');
-    setMensaje('Confirmando tu pago con Mercado Pago...');
+    setMensaje('Confirmando tu pago con Stripe...');
     setDetalle(null);
 
-    obtenerEstadoMercadoPago({
-      paymentId: datos.paymentId,
-      externalReference: datos.externalReference,
-      preferenceId: datos.preferenceId,
+    obtenerEstadoStripe({
+      pedidoId: params.pedidoId,
+      paymentIntentId: params.paymentIntentId,
     })
       .then((data) => {
         if (!activo) return;
@@ -137,13 +119,7 @@ const MercadoPagoReturnPage = () => {
     return () => {
       activo = false;
     };
-  }, [
-    clearCart,
-    datos.externalReference,
-    datos.paymentId,
-    datos.preferenceId,
-    estadoFallback,
-  ]);
+  }, [clearCart, params.pedidoId, params.paymentIntentId, estadoFallback]);
 
   const estadoLabel =
     estado === 'aprobado'
@@ -163,8 +139,6 @@ const MercadoPagoReturnPage = () => {
       ? 'text-amber-600'
       : estado === 'rechazado'
       ? 'text-[#B01010]'
-      : estado === 'error'
-      ? 'text-slate-500'
       : 'text-slate-500';
 
   const solicitarRedireccion = (destino: string, titulo: string) => {
@@ -183,12 +157,12 @@ const MercadoPagoReturnPage = () => {
       <section className="container mx-auto px-4 pt-12">
         <div className="rounded-3xl border border-[#F0E0E0] bg-white/90 p-8 shadow-[0_20px_50px_rgba(15,23,32,0.08)]">
           <p className={`text-xs uppercase tracking-[0.32em] ${estadoClase}`}>{estadoLabel}</p>
-          <h1 className="mt-3 font-display text-3xl text-slate-900">Pago Mercado Pago</h1>
+          <h1 className="mt-3 font-display text-3xl text-slate-900">Pago Apple Pay (Stripe)</h1>
           <p className="mt-3 text-sm text-slate-600">{mensaje}</p>
 
           {detalle && <p className="mt-2 text-xs text-slate-500">{detalle}</p>}
 
-          {(resumen || datos.paymentId || datos.preferenceId || datos.externalReference) && (
+          {(resumen || params.pedidoId || params.paymentIntentId) && (
             <div className="mt-6 grid gap-3 text-xs text-slate-600">
               {resumen?.pedidoCodigo && (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -202,52 +176,24 @@ const MercadoPagoReturnPage = () => {
                   <p className="mt-1 font-semibold text-slate-700">{formatCurrency(resumen.monto)}</p>
                 </div>
               )}
-              {resumen?.pagoId && (
+              {(resumen?.providerPaymentId || params.paymentIntentId) && (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Pago ID</p>
-                  <p className="mt-1 font-semibold text-slate-700">{resumen.pagoId}</p>
-                </div>
-              )}
-              {(resumen?.providerPaymentId || datos.paymentId) && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Payment ID</p>
+                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Payment Intent</p>
                   <p className="mt-1 font-semibold text-slate-700">
-                    {resumen?.providerPaymentId || datos.paymentId}
+                    {resumen?.providerPaymentId || params.paymentIntentId}
                   </p>
                 </div>
               )}
-              {(resumen?.preferenceId || datos.preferenceId) && (
+              {resumen?.stripeStatus && (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Preference ID</p>
-                  <p className="mt-1 font-semibold text-slate-700">
-                    {resumen?.preferenceId || datos.preferenceId}
-                  </p>
-                </div>
-              )}
-              {(resumen?.externalReference || datos.externalReference) && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Referencia</p>
-                  <p className="mt-1 font-semibold text-slate-700">
-                    {resumen?.externalReference || datos.externalReference}
-                  </p>
-                </div>
-              )}
-              {resumen?.mpStatus && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Estado MP</p>
-                  <p className="mt-1 font-semibold text-slate-700">{resumen.mpStatus}</p>
+                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Estado Stripe</p>
+                  <p className="mt-1 font-semibold text-slate-700">{resumen.stripeStatus}</p>
                 </div>
               )}
               {resumen?.updatedAt && (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Actualizado</p>
                   <p className="mt-1 font-semibold text-slate-700">{formatDateTime(resumen.updatedAt)}</p>
-                </div>
-              )}
-              {datos.merchantOrderId && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Orden MP</p>
-                  <p className="mt-1 font-semibold text-slate-700">{datos.merchantOrderId}</p>
                 </div>
               )}
             </div>
@@ -304,4 +250,4 @@ const MercadoPagoReturnPage = () => {
   );
 };
 
-export default MercadoPagoReturnPage;
+export default StripeReturnPage;

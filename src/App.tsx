@@ -11,6 +11,7 @@ import QuoteDetailPage from './pages/QuoteDetailPage';
 import LoginPage from './pages/LoginPage';
 import MercadoPagoReturnPage from './pages/MercadoPagoReturnPage';
 import TransbankReturnPage from './pages/TransbankReturnPage';
+import StripeReturnPage from './pages/StripeReturnPage';
 import NosotrosPage from './pages/NosotrosPage';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
@@ -36,7 +37,9 @@ const AppLayout = () => {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/pago/mercadopago" element={<MercadoPagoReturnPage />} />
+            <Route path="/pago/mercadopago/:resultado" element={<MercadoPagoReturnPage />} />
             <Route path="/pago/transbank" element={<TransbankReturnPage />} />
+            <Route path="/pago/stripe/:resultado" element={<StripeReturnPage />} />
             {/* Add other routes here later */}
           </Routes>
         </div>

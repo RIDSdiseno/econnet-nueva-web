@@ -5,7 +5,7 @@ import { loadStripe, type PaymentRequest } from '@stripe/stripe-js';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import {
-  crearApplePayDevIntent,
+  crearStripeIntent,
   crearPagoMercadoPago,
   crearPedido,
   iniciarPagoTransbankFormulario,
@@ -27,11 +27,13 @@ type ErroresDespacho = Partial<Record<keyof DespachoForm, string>>;
 
 type MetodoPago = 'transbank' | 'mercadopago' | 'applepay-dev' | null;
 
+type ApplePayResultado = 'success' | 'pending' | 'failure';
+
 type ApplePayPanelProps = {
   total: number;
   clientSecret: string;
   onDisponible: (disponible: boolean) => void;
-  onSuccess: () => void;
+  onResultado: (resultado: ApplePayResultado, status: string) => void;
   onError: (mensaje: string) => void;
   onCancel: () => void;
 };
@@ -135,7 +137,7 @@ const ApplePayDevPanel = ({
   total,
   clientSecret,
   onDisponible,
-  onSuccess,
+  onResultado,
   onError,
   onCancel,
 }: ApplePayPanelProps) => {
@@ -192,11 +194,16 @@ const ApplePayDevPanel = ({
         }
 
         if (intentFinal.status === 'succeeded') {
-          onSuccess();
+          onResultado('success', intentFinal.status);
           return;
         }
 
-        onError('Pago no completado.');
+        if (intentFinal.status === 'processing' || intentFinal.status === 'requires_action') {
+          onResultado('pending', intentFinal.status);
+          return;
+        }
+
+        onResultado('failure', intentFinal.status);
       } catch {
         event.complete('fail');
         onError('No se pudo procesar el pago.');
@@ -232,7 +239,7 @@ const ApplePayDevPanel = ({
         handleCancel
       );
     };
-  }, [stripe, total, clientSecret, onDisponible, onSuccess, onError, onCancel]);
+  }, [stripe, total, clientSecret, onDisponible, onResultado, onError, onCancel]);
 
   if (!paymentRequest) {
     return null;
@@ -270,6 +277,7 @@ const CartPage = () => {
   const [applePayPedidoId, setApplePayPedidoId] = useState<string | null>(null);
   const [applePayTotal, setApplePayTotal] = useState<number | null>(null);
   const [applePayClientSecret, setApplePayClientSecret] = useState<string | null>(null);
+  const [applePayPaymentIntentId, setApplePayPaymentIntentId] = useState<string | null>(null);
   const [applePayPanelVisible, setApplePayPanelVisible] = useState(false);
   const [applePayCargando, setApplePayCargando] = useState(false);
   const [applePayError, setApplePayError] = useState<string | null>(null);
@@ -462,9 +470,31 @@ const CartPage = () => {
     setApplePayError(null);
   };
 
-  const manejarApplePaySuccess = () => {
-    setApplePayExito(true);
-    setApplePayMensaje('Pago aprobado (DEV).');
+  const navegarResultadoStripe = (resultado: ApplePayResultado) => {
+    if (!applePayPedidoId) {
+      setApplePayError('No se pudo identificar el pedido.');
+      setMetodoPago(null);
+      return;
+    }
+
+    const params = new URLSearchParams({ pedidoId: applePayPedidoId });
+    if (applePayPaymentIntentId) {
+      params.set('payment_intent', applePayPaymentIntentId);
+    }
+
+    navigate(`/pago/stripe/${resultado}?${params.toString()}`);
+  };
+
+  const manejarApplePayResultado = (resultado: ApplePayResultado, status: string) => {
+    setApplePayExito(resultado === 'success');
+    if (resultado === 'success') {
+      setApplePayMensaje('Pago aprobado (DEV).');
+    } else if (resultado === 'pending') {
+      setApplePayMensaje(`Pago en proceso (${status}).`);
+    } else {
+      setApplePayMensaje('Pago no aprobado.');
+    }
+    navegarResultadoStripe(resultado);
   };
 
   const manejarApplePayError = (mensaje: string) => {
@@ -486,6 +516,7 @@ const CartPage = () => {
     setApplePayMensaje(null);
     setApplePayDisponiblePanel(null);
     setApplePayExito(false);
+    setApplePayPaymentIntentId(null);
 
     if (!stripeDevDisponible) {
       setApplePayPanelVisible(true);
@@ -524,8 +555,9 @@ const CartPage = () => {
         setApplePayTotal(total);
       }
 
-      const intent = await crearApplePayDevIntent({ orderId: pedidoId, usuarioId: user.id });
+      const intent = await crearStripeIntent({ pedidoId, usuarioId: user.id });
       setApplePayClientSecret(intent.clientSecret);
+      setApplePayPaymentIntentId(intent.paymentIntentId);
     } catch (error) {
       const mensaje = error instanceof Error ? error.message : 'No se pudo iniciar Apple Pay.';
       setApplePayError(mensaje);
@@ -888,7 +920,7 @@ const CartPage = () => {
                               total={applePayTotal}
                               clientSecret={applePayClientSecret}
                               onDisponible={manejarApplePayDisponible}
-                              onSuccess={manejarApplePaySuccess}
+                              onResultado={manejarApplePayResultado}
                               onError={manejarApplePayError}
                               onCancel={manejarApplePayCancel}
                             />

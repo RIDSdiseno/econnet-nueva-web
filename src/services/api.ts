@@ -50,6 +50,23 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
   return payload.data;
 };
 
+const parseResponseWithStatus = async <T>(response: Response): Promise<T> => {
+  const payload = (await response.json().catch(() => ({}))) as RespuestaApi<T>;
+
+  if (!response.ok || !payload.ok) {
+    const error = new Error(payload.message || 'Error de API');
+    (error as { details?: unknown; status?: number }).details = payload.details;
+    (error as { status?: number }).status = response.status;
+    throw error;
+  }
+
+  if (payload.data === undefined) {
+    throw new Error('Respuesta invalida del servidor');
+  }
+
+  return payload.data;
+};
+
 // ==============================
 // Productos
 // ==============================
@@ -308,7 +325,7 @@ export const crearPedido = async (payload: PedidoPayload) => {
 // Pagos
 // ==============================
 export const crearPagoMercadoPago = async (payload: { pedidoId: string }) => {
-  const response = await fetch(`${API_BASE_URL}/ecommerce/payments/mercadopago`, {
+  const requestOptions = {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -316,14 +333,75 @@ export const crearPagoMercadoPago = async (payload: { pedidoId: string }) => {
       ...authHeaders(),
     },
     body: JSON.stringify(payload),
-  });
+  };
 
-  return parseResponse<{
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/ecommerce/payments/mercadopago/preference`,
+      requestOptions,
+    );
+
+    return await parseResponseWithStatus<{
+      pagoId: string;
+      preferenceId: string;
+      initPoint: string;
+      sandboxInitPoint?: string;
+      redirectUrl: string;
+    }>(response);
+  } catch (error) {
+    const status = (error as { status?: number }).status;
+    if (status !== 404) {
+      throw error;
+    }
+  }
+
+  const legacyResponse = await fetch(`${API_BASE_URL}/ecommerce/payments/mercadopago`, requestOptions);
+
+  return parseResponseWithStatus<{
     pagoId: string;
     preferenceId: string;
     initPoint: string;
+    sandboxInitPoint?: string;
     redirectUrl: string;
-  }>(response);
+  }>(legacyResponse);
+};
+
+export type MercadoPagoEstado = {
+  pagoId: string;
+  pedidoId: string;
+  pedidoCodigo: string | null;
+  pedidoTotal: number;
+  estado: string;
+  monto: number;
+  preferenceId: string | null;
+  providerPaymentId: string | null;
+  externalReference: string | null;
+  mpStatus: string | null;
+  mpStatusDetail: string | null;
+  updatedAt: string;
+};
+
+export const obtenerEstadoMercadoPago = async (params: {
+  paymentId?: string | null;
+  externalReference?: string | null;
+  preferenceId?: string | null;
+}) => {
+  const query = new URLSearchParams();
+  if (params.paymentId) query.set('payment_id', params.paymentId);
+  if (params.externalReference) query.set('external_reference', params.externalReference);
+  if (params.preferenceId) query.set('preference_id', params.preferenceId);
+
+  const response = await fetch(
+    `${API_BASE_URL}/ecommerce/payments/mercadopago/status?${query.toString()}`,
+    {
+      headers: {
+        Accept: 'application/json',
+        ...authHeaders(),
+      },
+    },
+  );
+
+  return parseResponse<MercadoPagoEstado>(response);
 };
 
 export type ApplePayDevIntentPayload = {
@@ -347,6 +425,62 @@ export const crearApplePayDevIntent = async (payload: ApplePayDevIntentPayload) 
   });
 
   return parseResponse<ApplePayDevIntentResponse>(response);
+};
+
+export type StripeIntentPayload = {
+  pedidoId: string;
+  usuarioId?: string;
+};
+
+export type StripeIntentResponse = {
+  clientSecret: string;
+  paymentIntentId: string;
+  pagoId: string;
+};
+
+export const crearStripeIntent = async (payload: StripeIntentPayload) => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/payments/stripe/intent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse<StripeIntentResponse>(response);
+};
+
+export type StripeEstado = {
+  pagoId: string;
+  pedidoId: string;
+  pedidoCodigo: string | null;
+  monto: number;
+  estado: string;
+  providerPaymentId: string | null;
+  externalReference: string | null;
+  stripeStatus: string | null;
+  stripeStatusDetail: string | null;
+  updatedAt: string;
+};
+
+export const obtenerEstadoStripe = async (params: {
+  pedidoId?: string | null;
+  paymentIntentId?: string | null;
+}) => {
+  const query = new URLSearchParams();
+  if (params.pedidoId) query.set('pedidoId', params.pedidoId);
+  if (params.paymentIntentId) query.set('payment_intent', params.paymentIntentId);
+
+  const response = await fetch(`${API_BASE_URL}/ecommerce/payments/stripe/status?${query.toString()}`, {
+    headers: {
+      Accept: 'application/json',
+      ...authHeaders(),
+    },
+  });
+
+  return parseResponse<StripeEstado>(response);
 };
 
 export const iniciarPagoTransbankFormulario = (pedidoId: string) => {
