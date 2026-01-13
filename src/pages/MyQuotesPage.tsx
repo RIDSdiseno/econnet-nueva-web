@@ -17,6 +17,7 @@ const estadoLabel = (estado?: string | null) => {
 
 const estadoColor = (estado?: string | null) => {
   if (!estado) return 'text-emerald-600';
+  if (estado === 'PAGADA') return 'text-emerald-600';
   if (estado === 'RESPONDIDA') return 'text-emerald-600';
   if (estado === 'EN_REVISION') return 'text-amber-600';
   if (estado === 'CERRADA') return 'text-slate-500';

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { PDFDocument, StandardFonts, rgb, type PDFFont } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, type Color, type PDFFont } from 'pdf-lib';
 import { obtenerCotizacionDetalle, type CotizacionDetalle } from '../services/api';
 import { useQuoteHistory } from '../context/QuoteHistoryContext';
 
@@ -136,7 +136,7 @@ const QuoteDetailPage = () => {
         }
       };
 
-      const drawText = (text: string, options?: { size?: number; font?: PDFFont; color?: { r: number; g: number; b: number } }) => {
+      const drawText = (text: string, options?: { size?: number; font?: PDFFont; color?: Color }) => {
         const size = options?.size ?? 11;
         const currentFont = options?.font ?? font;
         const color = options?.color ?? rgb(0.15, 0.15, 0.15);
@@ -197,7 +197,9 @@ const QuoteDetailPage = () => {
       drawText(`Total: ${formatCurrency(detalle.total)}`, { font: bold });
 
       const bytes = await doc.save();
-      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const buffer = new ArrayBuffer(bytes.byteLength);
+      new Uint8Array(buffer).set(bytes);
+      const blob = new Blob([buffer], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -223,8 +225,6 @@ const QuoteDetailPage = () => {
   };
 
   const codigo = detalle?.codigo || summary?.codigo || id || '---';
-  const fecha = detalle?.createdAt ?? summary?.createdAt ?? null;
-  const estado = detalle?.estado ?? summary?.estado ?? null;
   const total = detalle?.total ?? summary?.total ?? 0;
 
   return (

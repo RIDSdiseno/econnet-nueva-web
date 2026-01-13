@@ -13,6 +13,7 @@
 html {
   font-size: 108%;
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 html.font-scale-lg {
@@ -23,6 +24,7 @@ body {
   position: relative;
   min-height: 100vh;
   margin: 0;
+  overflow-x: hidden;
   background-color: var(--sand);
   color: var(--ink);
   font-family: "Sora", sans-serif;

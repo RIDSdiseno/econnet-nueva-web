@@ -1,11 +1,11 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Elements, PaymentRequestButtonElement, useStripe } from '@stripe/react-stripe-js';
-import { loadStripe, type PaymentRequest } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import {
-  crearStripeIntent,
+  crearStripePaymentIntent,
   crearPagoMercadoPago,
   crearPedido,
   iniciarPagoTransbankFormulario,
@@ -25,29 +25,23 @@ type DespachoForm = {
 
 type ErroresDespacho = Partial<Record<keyof DespachoForm, string>>;
 
-type MetodoPago = 'transbank' | 'mercadopago' | 'applepay-dev' | null;
+type MetodoPago = 'transbank' | 'mercadopago' | 'stripe' | null;
 
-type ApplePayResultado = 'success' | 'pending' | 'failure';
+type StripeResultado = 'success' | 'pending' | 'failure';
 
-type ApplePayPanelProps = {
-  total: number;
-  clientSecret: string;
-  onDisponible: (disponible: boolean) => void;
-  onResultado: (resultado: ApplePayResultado, status: string) => void;
+type StripeCheckoutProps = {
+  onResultado: (resultado: StripeResultado, status: string, paymentIntentId?: string) => void;
   onError: (mensaje: string) => void;
-  onCancel: () => void;
+  returnUrl: string;
+  disabled?: boolean;
 };
 
 const ECOMMERCE_CLIENTE_ID_KEY = 'covasa_ecommerce_cliente_id';
 const LEGACY_CLIENTE_ID_KEY = 'covasa_cliente_id';
 const normalizarEnvValor = (value?: string) => (value ?? '').trim().replace(/^['"]|['"]$/g, '');
-const applePayDevFlag = normalizarEnvValor(
-  import.meta.env.VITE_APPLEPAY_DEV_ENABLED as string | undefined,
-).toLowerCase();
-const applePayDevFlagEnabled = applePayDevFlag === 'true' || applePayDevFlag === '1' || applePayDevFlag === 'yes';
 const stripePublishableKey = normalizarEnvValor(
-  (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST as string | undefined) ??
-    (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined),
+  (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined) ??
+    (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST as string | undefined),
 );
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
@@ -133,131 +127,62 @@ const claseInput = (error?: string) =>
     error ? 'border-[#B01010] focus:ring-[#B01010]' : 'border-slate-200 focus:ring-[#E04040]'
   }`;
 
-const ApplePayDevPanel = ({
-  total,
-  clientSecret,
-  onDisponible,
-  onResultado,
-  onError,
-  onCancel,
-}: ApplePayPanelProps) => {
+const StripeCheckoutForm = ({ onResultado, onError, returnUrl, disabled }: StripeCheckoutProps) => {
   const stripe = useStripe();
-  const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
+  const elements = useElements();
+  const [procesando, setProcesando] = useState(false);
 
-  useEffect(() => {
-    if (!stripe || total <= 0 || !clientSecret) {
-      setPaymentRequest(null);
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!stripe || !elements || disabled) {
       return;
     }
+    setProcesando(true);
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: { return_url: returnUrl },
+        redirect: 'if_required',
+      });
 
-    let activo = true;
-    const request = stripe.paymentRequest({
-      country: 'CL',
-      currency: 'clp',
-      total: { label: 'Total', amount: total },
-      requestPayerName: true,
-      requestPayerEmail: true,
-    });
-
-    const handlePaymentMethod = async (event: any) => {
-      if (!stripe) {
-        event.complete('fail');
-        onError('Stripe no disponible para Apple Pay.');
+      if (error) {
+        onError(error.message || 'No se pudo procesar el pago.');
         return;
       }
 
-      try {
-        const { error, paymentIntent } = await stripe.confirmCardPayment(
-          clientSecret,
-          { payment_method: event.paymentMethod.id },
-          { handleActions: false }
-        );
-
-        if (error || !paymentIntent) {
-          event.complete('fail');
-          onError('No se pudo procesar el pago.');
-          return;
-        }
-
-        event.complete('success');
-
-        let intentFinal = paymentIntent;
-        if (paymentIntent.status === 'requires_action') {
-          const { error: actionError, paymentIntent: actionIntent } =
-            await stripe.confirmCardPayment(clientSecret);
-
-          if (actionError || !actionIntent) {
-            onError('No se pudo completar el pago.');
-            return;
-          }
-          intentFinal = actionIntent;
-        }
-
-        if (intentFinal.status === 'succeeded') {
-          onResultado('success', intentFinal.status);
-          return;
-        }
-
-        if (intentFinal.status === 'processing' || intentFinal.status === 'requires_action') {
-          onResultado('pending', intentFinal.status);
-          return;
-        }
-
-        onResultado('failure', intentFinal.status);
-      } catch {
-        event.complete('fail');
+      if (!paymentIntent) {
         onError('No se pudo procesar el pago.');
-      }
-    };
-
-    const handleCancel = () => {
-      if (activo) {
-        onCancel();
-      }
-    };
-
-    request.on('paymentmethod', handlePaymentMethod);
-    request.on('cancel', handleCancel);
-
-    request.canMakePayment().then((result) => {
-      if (!activo) {
         return;
       }
-      const disponible = Boolean(result?.applePay);
-      onDisponible(disponible);
-      setPaymentRequest(disponible ? request : null);
-    });
 
-    return () => {
-      activo = false;
-      (request as unknown as { off?: (event: string, handler: (event?: unknown) => void) => void }).off?.(
-        'paymentmethod',
-        handlePaymentMethod
-      );
-      (request as unknown as { off?: (event: string, handler: (event?: unknown) => void) => void }).off?.(
-        'cancel',
-        handleCancel
-      );
-    };
-  }, [stripe, total, clientSecret, onDisponible, onResultado, onError, onCancel]);
+      const status = paymentIntent.status;
+      if (status === 'succeeded') {
+        onResultado('success', status, paymentIntent.id);
+        return;
+      }
 
-  if (!paymentRequest) {
-    return null;
-  }
+      if (status === 'processing' || status === 'requires_action') {
+        onResultado('pending', status, paymentIntent.id);
+        return;
+      }
+
+      onError('El pago fue rechazado.');
+    } finally {
+      setProcesando(false);
+    }
+  };
 
   return (
-    <PaymentRequestButtonElement
-      options={{
-        paymentRequest,
-        style: {
-          paymentRequestButton: {
-            type: 'default',
-            theme: 'dark',
-            height: '44px',
-          },
-        },
-      }}
-    />
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <PaymentElement options={{ layout: 'tabs' }} />
+      <button
+        type="submit"
+        disabled={!stripe || !elements || procesando || disabled}
+        className="w-full rounded-full bg-[#0f172a] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(15,23,42,0.25)] transition hover:bg-[#111827] disabled:cursor-not-allowed disabled:opacity-70"
+      >
+        {procesando ? 'Procesando pago...' : 'Pagar con Stripe'}
+      </button>
+    </form>
   );
 };
 
@@ -265,24 +190,22 @@ const CartPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const { items, totalQuantity, updateQuantity, removeItem, clearCart } = useCart();
-  const applePayDevEnabled = applePayDevFlagEnabled && import.meta.env.MODE !== 'production';
-  const applePayKeyDisponible = Boolean(stripePublishableKey);
-  const stripeDevDisponible = applePayDevEnabled && applePayKeyDisponible && Boolean(stripePromise);
+  const stripeKeyDisponible = Boolean(stripePublishableKey);
   const [despacho, setDespacho] = useState<DespachoForm>(despachoInicial);
   const [errores, setErrores] = useState<ErroresDespacho>({});
   const [pagoError, setPagoError] = useState<string | null>(null);
   const [metodoPago, setMetodoPago] = useState<MetodoPago>(null);
-  const [applePayDisponible, setApplePayDisponible] = useState<boolean | null>(null);
-  const [applePayDisponiblePanel, setApplePayDisponiblePanel] = useState<boolean | null>(null);
-  const [applePayPedidoId, setApplePayPedidoId] = useState<string | null>(null);
-  const [applePayTotal, setApplePayTotal] = useState<number | null>(null);
-  const [applePayClientSecret, setApplePayClientSecret] = useState<string | null>(null);
-  const [applePayPaymentIntentId, setApplePayPaymentIntentId] = useState<string | null>(null);
-  const [applePayPanelVisible, setApplePayPanelVisible] = useState(false);
-  const [applePayCargando, setApplePayCargando] = useState(false);
-  const [applePayError, setApplePayError] = useState<string | null>(null);
-  const [applePayMensaje, setApplePayMensaje] = useState<string | null>(null);
-  const [applePayExito, setApplePayExito] = useState(false);
+  const stripeDisponible = Boolean(stripePromise);
+  const [stripeApplePayDisponible, setStripeApplePayDisponible] = useState<boolean | null>(null);
+  const [stripePedidoId, setStripePedidoId] = useState<string | null>(null);
+  const [stripeTotal, setStripeTotal] = useState<number | null>(null);
+  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
+  const [stripePaymentIntentId, setStripePaymentIntentId] = useState<string | null>(null);
+  const [stripeModalVisible, setStripeModalVisible] = useState(false);
+  const [stripeCargando, setStripeCargando] = useState(false);
+  const [stripeError, setStripeError] = useState<string | null>(null);
+  const [stripeMensaje, setStripeMensaje] = useState<string | null>(null);
+  const [stripeExito, setStripeExito] = useState(false);
   const [ecommerceClienteId, setEcommerceClienteId] = useState<string | null>(() =>
     user?.ecommerceClienteId ?? obtenerClienteIdInicial()
   );
@@ -323,19 +246,43 @@ const CartPage = () => {
   const taxRate = 0.19;
   const ivaAmount = Math.round(totalNet * taxRate);
   const totalWithIva = totalNet + ivaAmount;
-  const applePayBotonDeshabilitado =
-    !stripeDevDisponible || Boolean(metodoPago) || applePayCargando;
+  const stripeBotonDeshabilitado = !stripeDisponible || Boolean(metodoPago) || stripeCargando;
+  const construirStripeQuery = (paymentIntentId?: string | null) => {
+    const params = new URLSearchParams();
+    if (stripePedidoId) {
+      params.set('pedidoId', stripePedidoId);
+    }
+    if (paymentIntentId) {
+      params.set('payment_intent', paymentIntentId);
+    }
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
+  };
+
+  const construirStripePath = (resultado: StripeResultado, paymentIntentId?: string | null) =>
+    `/pago/stripe/${resultado}${construirStripeQuery(paymentIntentId)}`;
+
+  const construirStripeReturnUrl = (resultado: StripeResultado, paymentIntentId?: string | null) => {
+    const path = construirStripePath(resultado, paymentIntentId);
+    if (typeof window === 'undefined') {
+      return path;
+    }
+    return `${window.location.origin}${path}`;
+  };
+
+  const stripeReturnUrl = construirStripeReturnUrl('pending', stripePaymentIntentId);
 
   const asignarSiVacio = (actual: string, nuevo?: string | null) =>
     limpiarTexto(actual) ? actual : nuevo ?? actual;
 
   useEffect(() => {
-    if (!stripeDevDisponible || totalWithIva <= 0 || !stripePromise) {
-      setApplePayDisponible(false);
+    if (!stripeDisponible || totalWithIva <= 0 || !stripePromise) {
+      setStripeApplePayDisponible(false);
       return;
     }
 
     let activo = true;
+    setStripeApplePayDisponible(null);
 
     stripePromise
       .then((stripe) => {
@@ -355,18 +302,18 @@ const CartPage = () => {
         if (!activo) {
           return;
         }
-        setApplePayDisponible(Boolean(result?.applePay));
+        setStripeApplePayDisponible(Boolean(result?.applePay));
       })
       .catch(() => {
         if (activo) {
-          setApplePayDisponible(false);
+          setStripeApplePayDisponible(false);
         }
       });
 
     return () => {
       activo = false;
     };
-  }, [stripeDevDisponible, totalWithIva]);
+  }, [stripeDisponible, totalWithIva, stripePromise]);
 
   useEffect(() => {
     if (!ecommerceClienteId) {
@@ -460,73 +407,61 @@ const CartPage = () => {
     })),
   });
 
-  const manejarApplePayDisponible = (disponible: boolean) => {
-    setApplePayDisponiblePanel(disponible);
-    if (!disponible) {
-      setApplePayError('Apple Pay no disponible en este navegador/dispositivo.');
-      setMetodoPago(null);
-      return;
-    }
-    setApplePayError(null);
-  };
-
-  const navegarResultadoStripe = (resultado: ApplePayResultado) => {
-    if (!applePayPedidoId) {
-      setApplePayError('No se pudo identificar el pedido.');
+  const navegarResultadoStripe = (resultado: StripeResultado, paymentIntentId?: string | null) => {
+    const intentId = paymentIntentId ?? stripePaymentIntentId ?? null;
+    if (!stripePedidoId && !intentId) {
+      setStripeError('No se pudo identificar el pedido.');
       setMetodoPago(null);
       return;
     }
 
-    const params = new URLSearchParams({ pedidoId: applePayPedidoId });
-    if (applePayPaymentIntentId) {
-      params.set('payment_intent', applePayPaymentIntentId);
-    }
-
-    navigate(`/pago/stripe/${resultado}?${params.toString()}`);
+    navigate(construirStripePath(resultado, intentId));
   };
 
-  const manejarApplePayResultado = (resultado: ApplePayResultado, status: string) => {
-    setApplePayExito(resultado === 'success');
+  const manejarStripeResultado = (resultado: StripeResultado, status: string, paymentIntentId?: string) => {
+    const intentId = paymentIntentId ?? null;
+    setStripePaymentIntentId(intentId);
+
     if (resultado === 'success') {
-      setApplePayMensaje('Pago aprobado (DEV).');
-    } else if (resultado === 'pending') {
-      setApplePayMensaje(`Pago en proceso (${status}).`);
-    } else {
-      setApplePayMensaje('Pago no aprobado.');
-    }
-    navegarResultadoStripe(resultado);
-  };
-
-  const manejarApplePayError = (mensaje: string) => {
-    setApplePayError(mensaje);
-    setMetodoPago(null);
-  };
-
-  const manejarApplePayCancel = () => {
-    setApplePayMensaje('Apple Pay cancelado.');
-    setMetodoPago(null);
-  };
-
-  const iniciarApplePayDev = async () => {
-    if (!applePayDevEnabled) {
+      setStripeMensaje('Pago confirmado.');
+      setStripeExito(true);
+      setStripeModalVisible(false);
       return;
     }
 
-    setApplePayError(null);
-    setApplePayMensaje(null);
-    setApplePayDisponiblePanel(null);
-    setApplePayExito(false);
-    setApplePayPaymentIntentId(null);
-
-    if (!stripeDevDisponible) {
-      setApplePayPanelVisible(true);
-      setApplePayError('Configura la llave publishable de Stripe para Apple Pay.');
+    if (resultado === 'pending') {
+      setStripeMensaje(`Pago en proceso (${status}).`);
+      navegarResultadoStripe('pending', intentId);
       return;
     }
+  };
 
-    if (applePayDisponible === false) {
-      setApplePayPanelVisible(true);
-      setApplePayError('Apple Pay no disponible en este navegador/dispositivo.');
+  const manejarStripeError = (mensaje: string) => {
+    setStripeError(mensaje);
+  };
+
+  const cerrarStripeModal = () => {
+    setStripeModalVisible(false);
+    setStripeError(null);
+    setStripeMensaje(null);
+    setMetodoPago(null);
+  };
+
+  const confirmarStripeExito = () => {
+    setStripeExito(false);
+    setMetodoPago(null);
+    navegarResultadoStripe('success', stripePaymentIntentId);
+  };
+
+  const iniciarPagoStripe = async () => {
+    setStripeError(null);
+    setStripeMensaje(null);
+    setStripeExito(false);
+    setStripePaymentIntentId(null);
+
+    if (!stripeKeyDisponible || !stripePromise) {
+      setStripeModalVisible(true);
+      setStripeError('Configura la llave publishable de Stripe para habilitar el pago.');
       return;
     }
 
@@ -534,36 +469,39 @@ const CartPage = () => {
       return;
     }
 
-    if (!user?.id) {
-      setApplePayError('Debes iniciar sesion para continuar con Apple Pay.');
-      return;
-    }
-
-    setApplePayPanelVisible(true);
-    setApplePayCargando(true);
-    setMetodoPago('applepay-dev');
+    setStripeModalVisible(true);
+    setStripeCargando(true);
+    setMetodoPago('stripe');
 
     try {
-      let pedidoId = applePayPedidoId;
-      let total = applePayTotal;
+      let pedidoId = stripePedidoId;
+      let total = stripeTotal;
 
       if (!pedidoId || !total) {
         const pedido = await crearPedido(construirPedidoPayload());
         pedidoId = pedido.pedidoId;
         total = pedido.total;
-        setApplePayPedidoId(pedidoId);
-        setApplePayTotal(total);
+        setStripePedidoId(pedidoId);
+        setStripeTotal(total);
       }
 
-      const intent = await crearStripeIntent({ pedidoId, usuarioId: user.id });
-      setApplePayClientSecret(intent.clientSecret);
-      setApplePayPaymentIntentId(intent.paymentIntentId);
+      if (!stripeClientSecret && pedidoId && total) {
+        const intent = await crearStripePaymentIntent({
+          orderId: pedidoId,
+          amount: total,
+          currency: 'clp',
+          customerEmail: limpiarTexto(despacho.email) || undefined,
+          metadata: { origen: 'checkout' },
+        });
+        setStripeClientSecret(intent.clientSecret);
+        setStripePaymentIntentId(intent.paymentIntentId ?? null);
+      }
     } catch (error) {
-      const mensaje = error instanceof Error ? error.message : 'No se pudo iniciar Apple Pay.';
-      setApplePayError(mensaje);
+      const mensaje = error instanceof Error ? error.message : 'No se pudo iniciar el pago con Stripe.';
+      setStripeError(mensaje);
       setMetodoPago(null);
     } finally {
-      setApplePayCargando(false);
+      setStripeCargando(false);
     }
   };
 
@@ -572,9 +510,9 @@ const CartPage = () => {
       return;
     }
 
-    setApplePayPanelVisible(false);
-    setApplePayError(null);
-    setApplePayMensaje(null);
+    setStripeModalVisible(false);
+    setStripeError(null);
+    setStripeMensaje(null);
     setMetodoPago('transbank');
 
     try {
@@ -592,9 +530,9 @@ const CartPage = () => {
       return;
     }
 
-    setApplePayPanelVisible(false);
-    setApplePayError(null);
-    setApplePayMensaje(null);
+    setStripeModalVisible(false);
+    setStripeError(null);
+    setStripeMensaje(null);
     setMetodoPago('mercadopago');
 
     try {
@@ -871,77 +809,91 @@ const CartPage = () => {
                       </svg>
                       {metodoPago === 'transbank' ? 'Redirigiendo...' : 'Transbank'}
                     </button>
-                    {applePayDevEnabled && (
-                      <button
-                        type="button"
-                        onClick={iniciarApplePayDev}
-                        disabled={applePayBotonDeshabilitado}
-                        aria-label="Pagar con Apple Pay (DEV)"
-                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-black px-6 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-70"
+                    <button
+                      type="button"
+                      onClick={iniciarPagoStripe}
+                      disabled={stripeBotonDeshabilitado}
+                      aria-label="Pagar con Stripe"
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#0f172a] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(15,23,42,0.25)] transition hover:bg-[#111827] disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        aria-hidden="true"
                       >
-                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                          <path d="M16.365 1.43c0 1.14-.43 2.22-1.2 3.03-.87.9-2.31 1.6-3.63 1.49-.14-1.15.36-2.31 1.16-3.15.84-.9 2.28-1.58 3.67-1.37z" />
-                          <path d="M12.12 5.05c1.74 0 2.5-.93 4.67-.93 2.17 0 3.26 1.2 3.26 1.2-1.24.76-2.1 2.18-2.1 3.86 0 2.1 1.5 3.18 2.1 3.54-.42 1.2-1.3 2.42-2.24 3.34-.86.84-1.74 1.42-3.03 1.42-1.27 0-1.68-.38-3.17-.38-1.5 0-2.02.4-3.18.4-1.2 0-2.06-.63-2.92-1.55-1.88-2-3.32-5.68-1.37-8.2.96-1.22 2.7-2.02 4.58-2.02 1.16 0 2.13.4 2.9.4z" />
-                        </svg>
-                        {applePayCargando ? 'Preparando...' : 'Apple Pay (DEV)'}
-                      </button>
-                    )}
+                        <rect x="3" y="6" width="18" height="12" rx="2" />
+                        <path d="M3 10h18" />
+                        <path d="M7 14h4" />
+                      </svg>
+                      {stripeCargando ? 'Preparando...' : 'Stripe (Tarjeta / Apple Pay)'}
+                    </button>
                   </div>
-                  {applePayDevEnabled && !applePayKeyDisponible && (
+                  {!stripeKeyDisponible && (
                     <p className="text-xs text-[#B01010]">
-                      Configura `VITE_STRIPE_PUBLISHABLE_KEY_TEST` para habilitar Apple Pay (DEV).
+                      Configura `VITE_STRIPE_PUBLISHABLE_KEY` para habilitar Stripe.
                     </p>
                   )}
-                  {applePayDevEnabled && applePayKeyDisponible && applePayDisponible === false && (
+                  {stripeKeyDisponible && stripeApplePayDisponible === false && (
                     <p className="text-xs text-slate-500">
-                      Apple Pay no disponible en este navegador/dispositivo.
+                      Apple Pay disponible solo en Safari/iPhone/Mac. Puedes pagar con tarjeta.
                     </p>
                   )}
-                  {applePayDevEnabled && applePayKeyDisponible && applePayDisponible === null && (
+                  {stripeKeyDisponible && stripeApplePayDisponible === null && (
                     <p className="text-xs text-slate-500">Verificando disponibilidad de Apple Pay...</p>
                   )}
-                  {applePayDevEnabled && applePayPanelVisible && (
+                  {stripeModalVisible && (
                     <div className="rounded-3xl border border-slate-200 bg-white/80 p-4">
                       <div className="flex flex-col gap-3">
-                        <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
-                          Apple Pay (DEV)
-                        </p>
-                        {applePayCargando && (
-                          <p className="text-xs text-slate-500">Preparando Apple Pay con Stripe...</p>
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
+                            Stripe (Tarjeta / Apple Pay)
+                          </p>
+                          <button
+                            type="button"
+                            onClick={cerrarStripeModal}
+                            className="rounded-full border border-slate-200 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-slate-500 transition hover:bg-slate-50"
+                          >
+                            Cerrar
+                          </button>
+                        </div>
+                        {stripeCargando && (
+                          <p className="text-xs text-slate-500">Preparando pago con Stripe...</p>
                         )}
-                        {!stripeDevDisponible && (
+                        {!stripeDisponible && (
                           <p className="text-xs text-[#B01010]">
-                            Falta configurar `VITE_STRIPE_PUBLISHABLE_KEY_TEST`.
+                            Falta configurar `VITE_STRIPE_PUBLISHABLE_KEY`.
                           </p>
                         )}
-                        {stripeDevDisponible && applePayClientSecret && applePayTotal ? (
-                          <Elements stripe={stripePromise}>
-                            <ApplePayDevPanel
-                              total={applePayTotal}
-                              clientSecret={applePayClientSecret}
-                              onDisponible={manejarApplePayDisponible}
-                              onResultado={manejarApplePayResultado}
-                              onError={manejarApplePayError}
-                              onCancel={manejarApplePayCancel}
+                        {stripeDisponible && stripeClientSecret && stripePromise ? (
+                          <Elements
+                            stripe={stripePromise}
+                            options={{
+                              clientSecret: stripeClientSecret,
+                              appearance: {
+                                theme: 'stripe',
+                                variables: { colorPrimary: '#B01010' },
+                              },
+                            }}
+                          >
+                            <StripeCheckoutForm
+                              onResultado={manejarStripeResultado}
+                              onError={manejarStripeError}
+                              returnUrl={stripeReturnUrl}
+                              disabled={stripeCargando}
                             />
                           </Elements>
                         ) : null}
-                        {applePayDisponiblePanel === false && (
-                          <p className="text-xs text-[#B01010]">
-                            Apple Pay no disponible en este navegador/dispositivo.
-                          </p>
-                        )}
-                        {applePayExito && (
-                          <p className="text-xs text-emerald-600">Pago aprobado (DEV).</p>
-                        )}
-                        {applePayMensaje && <p className="text-xs text-slate-600">{applePayMensaje}</p>}
-                        {applePayError && <p className="text-xs text-[#B01010]">{applePayError}</p>}
+                        {stripeMensaje && <p className="text-xs text-slate-600">{stripeMensaje}</p>}
+                        {stripeError && <p className="text-xs text-[#B01010]">{stripeError}</p>}
                       </div>
                     </div>
                   )}
                   {pagoError && <p className="text-xs text-[#B01010]">{pagoError}</p>}
                   <p className="text-xs text-slate-500">
-                    Apple Pay (DEV) usa Stripe en modo test. Mercado Pago y Transbank inician el pago real.
+                    Stripe permite pagar con tarjeta y Apple Pay cuando esta disponible en el navegador.
                   </p>
                 </div>
               </div>
@@ -949,6 +901,27 @@ const CartPage = () => {
           </div>
         )}
       </section>
+
+      {stripeExito && (
+        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 px-4">
+          <div className="modal-panel w-full max-w-md rounded-3xl border border-emerald-200/70 bg-white p-6 shadow-[0_20px_50px_rgba(6,95,70,0.25)]">
+            <p className="text-xs uppercase tracking-[0.32em] text-emerald-500">Pago confirmado</p>
+            <h2 className="mt-2 text-2xl font-semibold text-emerald-900">Pago confirmado</h2>
+            <p className="mt-2 text-sm text-emerald-800/80">
+              Tu pago fue aprobado. Seras redirigido a la pagina de exito.
+            </p>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={confirmarStripeExito}
+                className="flex-1 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(16,185,129,0.35)] transition hover:bg-emerald-700"
+              >
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

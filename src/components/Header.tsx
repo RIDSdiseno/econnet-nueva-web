@@ -247,7 +247,7 @@ const Header = () => {
               </div>
             </Link>
 
-            <div className="hidden lg:flex flex-1 items-center gap-3">
+            <div className="hidden lg:flex items-center gap-3">
               <button type="button" onClick={openSearch} className={searchButtonClass}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -267,7 +267,7 @@ const Header = () => {
               </NavLink>
             </div>
 
-            <div className="hidden lg:flex items-center gap-5 text-sm font-semibold text-slate-600">
+            <div className="hidden lg:flex flex-1 flex-wrap items-center justify-end gap-4 text-sm font-semibold text-slate-600 min-w-0">
               <NavLink to="/" end className={desktopNavClass}>
                 Inicio
               </NavLink>
@@ -286,6 +286,11 @@ const Header = () => {
               {hasQuotes && (
                 <NavLink to="/mis-cotizaciones" className={desktopNavClass}>
                   Mis cotizaciones
+                </NavLink>
+              )}
+              {isAuthenticated && (
+                <NavLink to="/mis-pagos" className={desktopNavClass}>
+                  Mis pagos
                 </NavLink>
               )}
               {isAuthenticated ? (
@@ -381,6 +386,11 @@ const Header = () => {
                 {hasQuotes && (
                   <NavLink to="/mis-cotizaciones" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
                     Mis cotizaciones
+                  </NavLink>
+                )}
+                {isAuthenticated && (
+                  <NavLink to="/mis-pagos" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
+                    Mis pagos
                   </NavLink>
                 )}
                 {!isAuthenticated && (
@@ -558,4 +568,3 @@ const Header = () => {
 };
 
 export default Header;
-

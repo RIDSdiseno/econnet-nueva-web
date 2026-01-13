@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { obtenerEstadoStripe, type StripeEstado } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { descargarReciboPdf, obtenerEstadoStripe, type StripeEstado } from '../services/api';
 
 type EstadoPago = 'cargando' | 'aprobado' | 'pendiente' | 'rechazado' | 'error';
 
@@ -30,8 +31,20 @@ const resolverEstadoInterno = (estado?: string | null): EstadoPago => {
   return 'error';
 };
 
+const resolverMensajeEstado = (estado: EstadoPago) => {
+  if (estado === 'aprobado') return 'Pago confirmado. Dirigirse a pagos para ver el detalle.';
+  if (estado === 'pendiente') return 'Pago pendiente. Te avisaremos cuando se confirme.';
+  if (estado === 'rechazado') return 'El pago fue rechazado. Puedes intentarlo nuevamente.';
+  if (estado === 'error') return 'No pudimos validar el pago.';
+  return 'Confirmando tu pago con Stripe...';
+};
+
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLL_ATTEMPTS = 15;
+
 const StripeReturnPage = () => {
   const { clearCart } = useCart();
+  const { isAuthenticated } = useAuth();
   const { resultado } = useParams<{ resultado?: string }>();
   const location = useLocation();
   const [estado, setEstado] = useState<EstadoPago>('cargando');
@@ -41,11 +54,15 @@ const StripeReturnPage = () => {
   const [confirmacion, setConfirmacion] = useState<{ destino: string; titulo: string } | null>(
     null,
   );
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [pdfCargando, setPdfCargando] = useState(false);
+  const ultimaClaveRef = useRef<string | null>(null);
 
   const params = useMemo(() => {
     const search = new URLSearchParams(location.search);
     return {
       pedidoId: search.get('pedidoId'),
+      cotizacionId: search.get('cotizacionId'),
       paymentIntentId: search.get('payment_intent'),
     };
   }, [location.search]);
@@ -54,72 +71,116 @@ const StripeReturnPage = () => {
     () => resolverEstadoDesdeResultado(resultado),
     [resultado],
   );
+  const esRutaExito = estadoFallback === 'aprobado';
 
   useEffect(() => {
-    if (!params.pedidoId && !params.paymentIntentId) {
+    if (!params.pedidoId && !params.cotizacionId && !params.paymentIntentId) {
       setEstado(estadoFallback);
-      setMensaje(
-        estadoFallback === 'aprobado'
-          ? 'Pago aprobado. Gracias por tu compra.'
-          : estadoFallback === 'pendiente'
-          ? 'Pago pendiente. Te avisaremos cuando se confirme.'
-          : estadoFallback === 'rechazado'
-          ? 'El pago fue rechazado. Puedes intentarlo nuevamente.'
-          : 'No pudimos validar el pago.',
-      );
+      setMensaje(resolverMensajeEstado(estadoFallback));
       if (estadoFallback === 'aprobado') {
         clearCart();
       }
       return;
     }
 
+    const clave = `${params.pedidoId ?? ''}|${params.cotizacionId ?? ''}|${params.paymentIntentId ?? ''}`;
+    if (ultimaClaveRef.current === clave) {
+      return;
+    }
+    ultimaClaveRef.current = clave;
+
     let activo = true;
-    setEstado('cargando');
-    setMensaje('Confirmando tu pago con Stripe...');
+    let intentos = 0;
+    let timer: number | undefined;
+    if (esRutaExito) {
+      setEstado('aprobado');
+      setMensaje('Pago confirmado. Dirigirse a pagos para ver el detalle.');
+      clearCart();
+    } else {
+      setEstado('cargando');
+      setMensaje('Confirmando tu pago con Stripe...');
+    }
     setDetalle(null);
 
-    obtenerEstadoStripe({
-      pedidoId: params.pedidoId,
-      paymentIntentId: params.paymentIntentId,
-    })
-      .then((data) => {
+    const consultarEstado = async () => {
+      try {
+        const data = await obtenerEstadoStripe({
+          pedidoId: params.pedidoId,
+          cotizacionId: params.cotizacionId,
+          paymentIntentId: params.paymentIntentId,
+        });
         if (!activo) return;
         setResumen(data);
         const nuevoEstado = resolverEstadoInterno(data.estado);
         setEstado(nuevoEstado);
-        setMensaje(
-          nuevoEstado === 'aprobado'
-            ? 'Pago aprobado. Gracias por tu compra.'
-            : nuevoEstado === 'pendiente'
-            ? 'Pago pendiente. Te avisaremos cuando se confirme.'
-            : nuevoEstado === 'rechazado'
-            ? 'El pago fue rechazado. Puedes intentarlo nuevamente.'
-            : 'No pudimos validar el pago.',
-        );
+        setMensaje(resolverMensajeEstado(nuevoEstado));
         if (nuevoEstado === 'aprobado') {
           clearCart();
+          return;
         }
-      })
-      .catch((error) => {
+        if (nuevoEstado === 'rechazado') {
+          return;
+        }
+      } catch (error) {
         if (!activo) return;
         const texto = error instanceof Error ? error.message : 'No se pudo confirmar el pago.';
         setDetalle(texto);
+      }
+
+      intentos += 1;
+      if (intentos >= MAX_POLL_ATTEMPTS) {
+        if (!activo) return;
         setEstado(estadoFallback);
-        setMensaje(
-          estadoFallback === 'aprobado'
-            ? 'Pago aprobado. Gracias por tu compra.'
-            : estadoFallback === 'pendiente'
-            ? 'Pago pendiente. Te avisaremos cuando se confirme.'
-            : estadoFallback === 'rechazado'
-            ? 'El pago fue rechazado. Puedes intentarlo nuevamente.'
-            : 'No pudimos validar el pago.',
-        );
-      });
+        setMensaje(resolverMensajeEstado(estadoFallback));
+        if (estadoFallback === 'aprobado') {
+          clearCart();
+        }
+        return;
+      }
+
+      timer = window.setTimeout(consultarEstado, POLL_INTERVAL_MS);
+    };
+
+    consultarEstado();
 
     return () => {
       activo = false;
+      if (timer) {
+        window.clearTimeout(timer);
+      }
     };
-  }, [clearCart, params.pedidoId, params.paymentIntentId, estadoFallback]);
+  }, [clearCart, params.pedidoId, params.cotizacionId, params.paymentIntentId, estadoFallback, esRutaExito]);
+
+  const descargarPdf = async () => {
+    if (!resumen?.pagoId) {
+      setPdfError('No se pudo identificar el pago.');
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setPdfError('Inicia sesion para descargar el recibo.');
+      return;
+    }
+
+    setPdfError(null);
+    setPdfCargando(true);
+    try {
+      const blob = await descargarReciboPdf(resumen.pagoId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `recibo-${resumen.pagoId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      const mensaje = error instanceof Error ? error.message : 'No se pudo descargar el recibo.';
+      setPdfError(mensaje);
+    } finally {
+      setPdfCargando(false);
+    }
+  };
 
   const estadoLabel =
     estado === 'aprobado'
@@ -130,6 +191,8 @@ const StripeReturnPage = () => {
       ? 'Pago rechazado'
       : estado === 'error'
       ? 'Pago no confirmado'
+      : esRutaExito
+      ? 'Pago aprobado'
       : 'Procesando pago';
 
   const estadoClase =
@@ -157,12 +220,12 @@ const StripeReturnPage = () => {
       <section className="container mx-auto px-4 pt-12">
         <div className="rounded-3xl border border-[#F0E0E0] bg-white/90 p-8 shadow-[0_20px_50px_rgba(15,23,32,0.08)]">
           <p className={`text-xs uppercase tracking-[0.32em] ${estadoClase}`}>{estadoLabel}</p>
-          <h1 className="mt-3 font-display text-3xl text-slate-900">Pago Apple Pay (Stripe)</h1>
+          <h1 className="mt-3 font-display text-3xl text-slate-900">Pago Stripe</h1>
           <p className="mt-3 text-sm text-slate-600">{mensaje}</p>
 
           {detalle && <p className="mt-2 text-xs text-slate-500">{detalle}</p>}
 
-          {(resumen || params.pedidoId || params.paymentIntentId) && (
+          {(resumen || params.pedidoId || params.cotizacionId || params.paymentIntentId) && (
             <div className="mt-6 grid gap-3 text-xs text-slate-600">
               {resumen?.pedidoCodigo && (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -170,18 +233,16 @@ const StripeReturnPage = () => {
                   <p className="mt-1 font-semibold text-slate-700">{resumen.pedidoCodigo}</p>
                 </div>
               )}
+              {!resumen?.pedidoCodigo && resumen?.cotizacionCodigo && (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Cotizacion</p>
+                  <p className="mt-1 font-semibold text-slate-700">{resumen.cotizacionCodigo}</p>
+                </div>
+              )}
               {resumen && (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Monto</p>
                   <p className="mt-1 font-semibold text-slate-700">{formatCurrency(resumen.monto)}</p>
-                </div>
-              )}
-              {(resumen?.providerPaymentId || params.paymentIntentId) && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Payment Intent</p>
-                  <p className="mt-1 font-semibold text-slate-700">
-                    {resumen?.providerPaymentId || params.paymentIntentId}
-                  </p>
                 </div>
               )}
               {resumen?.stripeStatus && (
@@ -199,7 +260,30 @@ const StripeReturnPage = () => {
             </div>
           )}
 
+          {resumen?.pagoId && (
+            <div className="mt-6 space-y-2">
+              <button
+                type="button"
+                onClick={descargarPdf}
+                disabled={pdfCargando}
+                className="rounded-full border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {pdfCargando ? 'Descargando recibo...' : 'Descargar recibo PDF'}
+              </button>
+              {pdfError && <p className="text-xs text-[#B01010]">{pdfError}</p>}
+            </div>
+          )}
+
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            {(estado === 'aprobado' || esRutaExito) && (
+              <button
+                type="button"
+                onClick={() => solicitarRedireccion('/mis-pagos', 'Dirigirse a pagos')}
+                className="rounded-full border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Dirigirse a pagos
+              </button>
+            )}
             <button
               type="button"
               onClick={() => solicitarRedireccion('/cart', 'Volver al carrito')}

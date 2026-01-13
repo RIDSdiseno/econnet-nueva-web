@@ -8,6 +8,8 @@ import CartPage from './pages/CartPage';
 import QuotePage from './pages/QuotePage';
 import MyQuotesPage from './pages/MyQuotesPage';
 import QuoteDetailPage from './pages/QuoteDetailPage';
+import MyPaymentsPage from './pages/MyPaymentsPage';
+import PaymentDetailPage from './pages/PaymentDetailPage';
 import LoginPage from './pages/LoginPage';
 import MercadoPagoReturnPage from './pages/MercadoPagoReturnPage';
 import TransbankReturnPage from './pages/TransbankReturnPage';
@@ -34,6 +36,8 @@ const AppLayout = () => {
             <Route path="/cotizar" element={<QuotePage />} />
             <Route path="/mis-cotizaciones" element={<MyQuotesPage />} />
             <Route path="/mis-cotizaciones/:id" element={<QuoteDetailPage />} />
+            <Route path="/mis-pagos" element={<MyPaymentsPage />} />
+            <Route path="/mis-pagos/:id" element={<PaymentDetailPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/pago/mercadopago" element={<MercadoPagoReturnPage />} />

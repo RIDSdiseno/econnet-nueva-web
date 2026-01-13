@@ -8,7 +8,7 @@ type RespuestaApi<T> = {
 };
 
 export const API_BASE_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000/api';
+  (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3001/api';
 
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
@@ -16,7 +16,17 @@ const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 // Auth token helpers (JWT)
 // ==============================
 // Guardamos el token en memoria (simple). Si quieres persistirlo, se puede usar localStorage.
-let AUTH_TOKEN: string | null = null;
+const AUTH_TOKEN_KEY = 'covasa_auth_token';
+
+const leerTokenStorage = () => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  const valor = window.localStorage.getItem(AUTH_TOKEN_KEY);
+  return valor && valor.trim().length > 0 ? valor : null;
+};
+
+let AUTH_TOKEN: string | null = leerTokenStorage();
 
 /**
  * Permite setear/eliminar token JWT desde el AuthContext.
@@ -24,6 +34,14 @@ let AUTH_TOKEN: string | null = null;
  */
 export const setAuthToken = (token: string | null) => {
   AUTH_TOKEN = token;
+  if (typeof window === 'undefined') {
+    return;
+  }
+  if (token) {
+    window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+  } else {
+    window.localStorage.removeItem(AUTH_TOKEN_KEY);
+  }
 };
 
 const authHeaders = (): HeadersInit => {
@@ -180,7 +198,7 @@ export const registrarUsuario = async (payload: {
     body: JSON.stringify(payload),
   });
 
-  return parseResponse<{ usuario: UsuarioEcommerce }>(response);
+  return parseResponse<{ token: string; usuario: UsuarioEcommerce }>(response);
 };
 
 export const loginUsuario = async (payload: { email: string; password: string }) => {
@@ -193,7 +211,11 @@ export const loginUsuario = async (payload: { email: string; password: string })
     body: JSON.stringify(payload),
   });
 
-  return parseResponse<{ usuario: UsuarioEcommerce; direccionPrincipal: DireccionContacto | null }>(response);
+  return parseResponse<{
+    token: string;
+    usuario: UsuarioEcommerce;
+    direccionPrincipal: DireccionContacto | null;
+  }>(response);
 };
 
 /**
@@ -404,17 +426,23 @@ export const obtenerEstadoMercadoPago = async (params: {
   return parseResponse<MercadoPagoEstado>(response);
 };
 
-export type ApplePayDevIntentPayload = {
-  orderId: string;
-  usuarioId: string;
+export type StripeCreateIntentPayload = {
+  orderId?: string;
+  cotizacionId?: string;
+  amount: number;
+  currency: string;
+  customerEmail?: string;
+  metadata?: Record<string, unknown>;
 };
 
-export type ApplePayDevIntentResponse = {
+export type StripeCreateIntentResponse = {
   clientSecret: string;
+  paymentIntentId?: string;
+  pagoId?: string;
 };
 
-export const crearApplePayDevIntent = async (payload: ApplePayDevIntentPayload) => {
-  const response = await fetch(`${API_BASE_URL}/ecommerce/payments/applepay-dev/create-intent`, {
+export const crearStripePaymentIntent = async (payload: StripeCreateIntentPayload) => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/pagos/stripe/create-intent`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -424,39 +452,17 @@ export const crearApplePayDevIntent = async (payload: ApplePayDevIntentPayload) 
     body: JSON.stringify(payload),
   });
 
-  return parseResponse<ApplePayDevIntentResponse>(response);
-};
-
-export type StripeIntentPayload = {
-  pedidoId: string;
-  usuarioId?: string;
-};
-
-export type StripeIntentResponse = {
-  clientSecret: string;
-  paymentIntentId: string;
-  pagoId: string;
-};
-
-export const crearStripeIntent = async (payload: StripeIntentPayload) => {
-  const response = await fetch(`${API_BASE_URL}/ecommerce/payments/stripe/intent`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      ...authHeaders(),
-    },
-    body: JSON.stringify(payload),
-  });
-
-  return parseResponse<StripeIntentResponse>(response);
+  return parseResponse<StripeCreateIntentResponse>(response);
 };
 
 export type StripeEstado = {
   pagoId: string;
-  pedidoId: string;
-  pedidoCodigo: string | null;
+  pedidoId?: string | null;
+  pedidoCodigo?: string | null;
+  cotizacionId?: string | null;
+  cotizacionCodigo?: string | null;
   monto: number;
+  moneda?: string | null;
   estado: string;
   providerPaymentId: string | null;
   externalReference: string | null;
@@ -467,13 +473,15 @@ export type StripeEstado = {
 
 export const obtenerEstadoStripe = async (params: {
   pedidoId?: string | null;
+  cotizacionId?: string | null;
   paymentIntentId?: string | null;
 }) => {
   const query = new URLSearchParams();
   if (params.pedidoId) query.set('pedidoId', params.pedidoId);
+  if (params.cotizacionId) query.set('cotizacionId', params.cotizacionId);
   if (params.paymentIntentId) query.set('payment_intent', params.paymentIntentId);
 
-  const response = await fetch(`${API_BASE_URL}/ecommerce/payments/stripe/status?${query.toString()}`, {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/pagos/stripe/status?${query.toString()}`, {
     headers: {
       Accept: 'application/json',
       ...authHeaders(),
@@ -534,6 +542,137 @@ export const obtenerPagoRecibo = async (pagoId: string) => {
   });
 
   return parseResponse<PagoRecibo>(response);
+};
+
+export type PagoProveedor = {
+  metodo: string;
+  referencia?: string | null;
+  transbank?: {
+    buyOrder: string;
+    authorizationCode: string;
+    paymentTypeCode: string;
+    installmentsNumber: number | null;
+    cardNumber?: string;
+    transactionDate?: string | null;
+  } | null;
+};
+
+export type PagoListado = {
+  pagoId: string;
+  metodo: string;
+  estado: string;
+  monto: number;
+  moneda?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  pedido?: {
+    id: string;
+    codigo?: string | null;
+    total: number;
+    estado: string;
+    createdAt: string;
+  } | null;
+  cotizacion?: {
+    id: string;
+    codigo?: string | null;
+    total: number;
+    estado: string;
+    createdAt: string;
+  } | null;
+  proveedor: PagoProveedor;
+};
+
+export const listarMisPagos = async () => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/pagos/mis-pagos`, {
+    headers: {
+      Accept: 'application/json',
+      ...authHeaders(),
+    },
+  });
+
+  return parseResponse<PagoListado[]>(response);
+};
+
+export type PagoDetalle = {
+  pagoId: string;
+  metodo: string;
+  estado: string;
+  monto: number;
+  moneda?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  proveedor: PagoProveedor;
+  pedido?: {
+    id: string;
+    codigo?: string | null;
+    total: number;
+    subtotalNeto?: number;
+    iva?: number;
+    estado: string;
+    createdAt: string;
+    direccion?: DireccionContacto | null;
+    items: Array<{
+      descripcionSnapshot: string;
+      cantidad: number;
+      precioUnitarioNetoSnapshot: number;
+      subtotalNetoSnapshot: number;
+      ivaPctSnapshot: number;
+      ivaMontoSnapshot: number;
+      totalSnapshot: number;
+    }>;
+  } | null;
+  cotizacion?: {
+    id: string;
+    codigo?: string | null;
+    total: number;
+    subtotalNeto?: number;
+    iva?: number;
+    estado: string;
+    createdAt: string;
+    contacto?: {
+      nombreContacto?: string | null;
+      email?: string | null;
+      telefono?: string | null;
+      empresa?: string | null;
+      rut?: string | null;
+      direccion?: string | null;
+    } | null;
+    items: Array<{
+      descripcionSnapshot: string;
+      cantidad: number;
+      precioUnitarioNetoSnapshot: number;
+      subtotalNetoSnapshot: number;
+      ivaPctSnapshot: number;
+      ivaMontoSnapshot: number;
+      totalSnapshot: number;
+    }>;
+  } | null;
+};
+
+export const obtenerPagoDetalle = async (pagoId: string) => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/pagos/mis-pagos/${pagoId}`, {
+    headers: {
+      Accept: 'application/json',
+      ...authHeaders(),
+    },
+  });
+
+  return parseResponse<PagoDetalle>(response);
+};
+
+export const descargarReciboPdf = async (pagoId: string) => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/pagos/mis-pagos/${pagoId}/recibo.pdf`, {
+    headers: {
+      ...authHeaders(),
+    },
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as RespuestaApi<unknown>;
+    throw new Error(payload.message || 'No se pudo descargar el recibo.');
+  }
+
+  return response.blob();
 };
 
 // ==============================

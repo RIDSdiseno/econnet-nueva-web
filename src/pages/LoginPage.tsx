@@ -1,7 +1,14 @@
 ﻿import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { loginUsuario, registrarUsuario, loginMicrosoft, loginGoogle, type DireccionContacto } from '../services/api';
+import {
+  loginUsuario,
+  registrarUsuario,
+  loginMicrosoft,
+  loginGoogle,
+  setAuthToken,
+  type DireccionContacto,
+} from '../services/api';
 
 // MSAL
 import { useMsal } from '@azure/msal-react';
@@ -92,6 +99,7 @@ const LoginPage = () => {
     try {
       const data = await loginUsuario({ email, password });
       const usuario = data.usuario;
+      setAuthToken(data.token);
 
       login({
         id: usuario.id,
@@ -133,6 +141,7 @@ const LoginPage = () => {
     try {
       const data = await registrarUsuario({ nombre: name, email, password });
       const usuario = data.usuario;
+      setAuthToken(data.token);
 
       login({
         id: usuario.id,
@@ -169,6 +178,7 @@ const LoginPage = () => {
 
       // 2) Backend valida y devuelve sesión propia
       const data = await loginMicrosoft({ idToken });
+      setAuthToken(data.token);
 
       // 3) Guardar en AuthContext
       login({
@@ -202,6 +212,7 @@ const LoginPage = () => {
 
     try {
       const data = await loginGoogle({ credential });
+      setAuthToken(data.token);
 
       login({
         id: data.user.id,

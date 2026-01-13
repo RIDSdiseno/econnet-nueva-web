@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { setAuthToken } from '../services/api';
 
 export type DireccionContacto = {
   id?: string;
@@ -96,6 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const logout = useCallback(() => {
+    setAuthToken(null);
     setUser(null);
   }, []);
 
