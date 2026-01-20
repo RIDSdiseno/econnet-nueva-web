@@ -158,7 +158,7 @@ const PaymentDetailPage = () => {
 
   const referencia = detalle.proveedor?.referencia ?? null;
   const mostrarReferencia =
-    Boolean(referencia) && detalle.metodo !== 'STRIPE' && !referencia.startsWith('pi_');
+    referencia != null && detalle.metodo !== 'STRIPE' && !referencia.startsWith('pi_');
 
   return (
     <div className="space-y-10 pb-20">
