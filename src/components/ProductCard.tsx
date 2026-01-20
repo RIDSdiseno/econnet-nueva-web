@@ -73,6 +73,8 @@ const palettes = [
 
 const ProductCard = ({ product, index }: ProductCardProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isQuantityModalOpen, setIsQuantityModalOpen] = useState(false);
+  const [quantity, setQuantity] = useState(1);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const gallery = useMemo(() => getProductImages(product), [product]);
   const palette = palettes[index % palettes.length];
@@ -80,6 +82,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
   const { addItems } = useCart();
   const modalId = `product-modal-${product.id}`;
   const titleId = `product-title-${product.id}`;
+  const quantityModalId = `quantity-modal-${product.id}`;
 
   const sku = product.sku ?? `COV-${String(index + 1).padStart(3, '0')}`;
   const stockDisponible = typeof product.stockDisponible === 'number' ? product.stockDisponible : null;
@@ -115,8 +118,18 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
     }
   };
 
-  const handleAddToCart = (event: MouseEvent<HTMLButtonElement>) => {
+  const openQuantityModal = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
+    setQuantity(1);
+    setIsQuantityModalOpen(true);
+  };
+
+  const closeQuantityModal = () => {
+    setIsQuantityModalOpen(false);
+    setQuantity(1);
+  };
+
+  const handleConfirmAddToCart = () => {
     addItems([
       {
         productId: product.id,
@@ -124,10 +137,34 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
         description: product.description,
         unit: product.unit,
         unitPrice: product.price,
-        quantity: 1,
+        quantity: quantity,
         image: product.image || undefined,
       },
     ]);
+    closeQuantityModal();
+  };
+
+  const incrementQuantity = () => {
+    const maxStock = stockDisponible ?? 9999;
+    if (quantity < maxStock) {
+      setQuantity((prev) => prev + 1);
+    }
+  };
+
+  const decrementQuantity = () => {
+    if (quantity > 1) {
+      setQuantity((prev) => prev - 1);
+    }
+  };
+
+  const handleQuantityInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(event.target.value, 10);
+    const maxStock = stockDisponible ?? 9999;
+    if (!isNaN(value) && value >= 1 && value <= maxStock) {
+      setQuantity(value);
+    } else if (event.target.value === '') {
+      setQuantity(1);
+    }
   };
 
   useEffect(() => {
@@ -156,6 +193,28 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isModalOpen]);
+
+  useEffect(() => {
+    if (!isQuantityModalOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsQuantityModalOpen(false);
+        setQuantity(1);
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isQuantityModalOpen]);
 
   return (
     <>
@@ -237,7 +296,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
             </div>
             <button
               type="button"
-              onClick={handleAddToCart}
+              onClick={openQuantityModal}
               onKeyDown={(event) => event.stopPropagation()}
               className="w-full rounded-full bg-gradient-to-r from-[#B01010] to-[#D03030] px-5 py-3.5 text-sm font-bold text-white shadow-xl transition-all duration-300 hover:from-[#D03030] hover:to-[#E04040] hover:shadow-2xl hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2.5 border border-white/10"
             >
@@ -356,7 +415,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                         </p>
                         <button
                           type="button"
-                          onClick={handleAddToCart}
+                          onClick={openQuantityModal}
                           className="group w-full flex items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-[#B01010] to-[#D03030] px-6 py-3.5 text-sm font-bold text-white shadow-xl transition-all duration-300 hover:from-[#D03030] hover:to-[#E04040] hover:shadow-2xl hover:scale-[1.02] active:scale-95 border border-white/10"
                         >
                           <svg className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
@@ -377,6 +436,119 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                         <p className="text-xs text-slate-500 leading-relaxed">{disponibilidadDetalle}</p>
                       </div>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+
+      {isQuantityModalOpen && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[70] flex items-center justify-center px-4 py-8"
+              onClick={closeQuantityModal}
+            >
+              <div className="fixed inset-0 bg-gradient-to-br from-[#1b0b0b]/80 via-[#2a1515]/75 to-[#1b0b0b]/80 backdrop-blur-lg"></div>
+              <div
+                id={quantityModalId}
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Seleccionar cantidad de ${product.name}`}
+                className="relative z-10 w-full max-w-md rounded-3xl border border-slate-200/50 bg-gradient-to-br from-white via-slate-50/95 to-white shadow-[0_40px_100px_rgba(0,0,0,0.45)] backdrop-blur-2xl overflow-hidden"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#E04040]/5 to-transparent rounded-full blur-3xl"></div>
+
+                <div className="relative p-6">
+                  <div className="flex items-start justify-between gap-4 mb-6">
+                    <div className="space-y-1">
+                      <p className="text-[0.6rem] uppercase tracking-[0.3em] text-[#B01010] font-bold">Cantidad</p>
+                      <h3 className="font-display text-xl text-slate-900 leading-tight line-clamp-2">
+                        {product.name}
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={closeQuantityModal}
+                      className="group rounded-full border-2 border-slate-200/80 bg-white/80 backdrop-blur-sm p-2 text-slate-500 transition-all hover:bg-slate-100 hover:text-slate-700 hover:border-[#E04040]/30 hover:scale-110 active:scale-95"
+                      aria-label="Cerrar"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:rotate-90" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-4 mb-6">
+                    <button
+                      type="button"
+                      onClick={decrementQuantity}
+                      disabled={quantity <= 1}
+                      className="rounded-full border-2 border-slate-200 bg-white p-3 text-slate-600 transition-all hover:bg-slate-100 hover:border-[#E04040]/30 hover:text-[#B01010] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+                      aria-label="Disminuir cantidad"
+                    >
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
+                      </svg>
+                    </button>
+
+                    <input
+                      type="number"
+                      min={1}
+                      max={stockDisponible ?? 9999}
+                      value={quantity}
+                      onChange={handleQuantityInputChange}
+                      className="w-24 rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-center text-2xl font-bold text-slate-900 focus:border-[#E04040] focus:outline-none focus:ring-2 focus:ring-[#E04040]/20 transition-all"
+                      aria-label="Cantidad"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={incrementQuantity}
+                      disabled={stockDisponible !== null && quantity >= stockDisponible}
+                      className="rounded-full border-2 border-slate-200 bg-white p-3 text-slate-600 transition-all hover:bg-slate-100 hover:border-[#E04040]/30 hover:text-[#B01010] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+                      aria-label="Aumentar cantidad"
+                    >
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {stockDisponible !== null && (
+                    <p className="text-center text-xs text-slate-500 mb-4">
+                      Stock disponible: <span className="font-semibold text-slate-700">{stockDisponible}</span> unidades
+                    </p>
+                  )}
+
+                  <div className="rounded-2xl bg-gradient-to-br from-[#1b0b0b] via-[#2a1515] to-[#1b0b0b] px-4 py-3 text-white shadow-xl border border-white/5 mb-5">
+                    <p className="text-[0.55rem] uppercase tracking-[0.3em] text-white/50 font-semibold mb-0.5">Total</p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-sm font-semibold text-white/70">CLP</span>
+                      <span className="text-2xl font-black text-white">{(product.price * quantity).toLocaleString('es-CL')}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={closeQuantityModal}
+                      className="flex-1 rounded-full border-2 border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 transition-all hover:bg-slate-100 hover:border-slate-300 active:scale-95"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmAddToCart}
+                      className="flex-1 rounded-full bg-gradient-to-r from-[#B01010] to-[#D03030] px-5 py-3 text-sm font-bold text-white shadow-xl transition-all duration-300 hover:from-[#D03030] hover:to-[#E04040] hover:shadow-2xl hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 border border-white/10"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Confirmar
+                    </button>
                   </div>
                 </div>
               </div>

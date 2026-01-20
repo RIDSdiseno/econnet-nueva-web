@@ -211,6 +211,7 @@ const CartPage = () => {
   );
   const [clienteCargando, setClienteCargando] = useState(false);
   const [clienteError, setClienteError] = useState<string | null>(null);
+  const [mostrarModalLogin, setMostrarModalLogin] = useState(false);
 
   useEffect(() => {
     if (user?.ecommerceClienteId) {
@@ -370,8 +371,7 @@ const CartPage = () => {
     }
 
     if (!isAuthenticated) {
-      setPagoError('Debes iniciar sesion para continuar con el pago.');
-      navigate('/login');
+      setMostrarModalLogin(true);
       return false;
     }
 
@@ -917,6 +917,56 @@ const CartPage = () => {
                 className="flex-1 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(16,185,129,0.35)] transition hover:bg-emerald-700"
               >
                 Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mostrarModalLogin && (
+        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-[#1b0b0b]/40 px-4">
+          <div className="modal-panel w-full max-w-md rounded-3xl border border-[#F0E0E0] bg-white p-6 shadow-[0_20px_50px_rgba(176,16,16,0.15)]">
+            <div className="flex items-center justify-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F7EAEA]">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-7 w-7 text-[#B01010]"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+                </svg>
+              </div>
+            </div>
+            <p className="mt-4 text-center text-xs uppercase tracking-[0.32em] text-[#B01010]">
+              Inicio de sesion requerido
+            </p>
+            <h2 className="mt-2 text-center text-2xl font-semibold text-slate-900">
+              Debes iniciar sesion
+            </h2>
+            <p className="mt-2 text-center text-sm text-slate-600">
+              Para continuar con el pago necesitas tener una cuenta e iniciar sesion.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setMostrarModalLogin(false)}
+                className="flex-1 rounded-full border border-[#F0E0E0] px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMostrarModalLogin(false);
+                  navigate('/login');
+                }}
+                className="flex-1 rounded-full bg-[#B01010] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(176,16,16,0.3)] transition hover:bg-[#D03030]"
+              >
+                Iniciar sesion
               </button>
             </div>
           </div>
