@@ -8,7 +8,7 @@ type RespuestaApi<T> = {
 };
 
 export const API_BASE_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3001/api';
+  (import.meta.env.VITE_API_URL as string | undefined) ?? 'https://covasabackecomerce-production.up.railway.app/api';
 
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
