@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useQuoteHistory } from '../context/QuoteHistoryContext';
 import SearchModal from './SearchModal';
+import { covasaContact } from '../data/contact';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -208,7 +209,7 @@ const Header = () => {
                     </svg>
                   </a>
                   <a
-                    href="https://wa.me/56912345678"
+                    href={covasaContact.whatsappUrl}
                     target="_blank"
                     rel="noreferrer"
                     aria-label="WhatsApp"
@@ -226,8 +227,8 @@ const Header = () => {
                     </svg>
                   </a>
                 </div>
-                <span className="font-semibold text-white/90">+56 9 1234 5678</span>
-                <span className="text-white/70">ventas@covasa.cl</span>
+                <span className="font-semibold text-white/90">{covasaContact.phone}</span>
+                <span className="text-white/70">{covasaContact.email}</span>
               </div>
             </div>
           </div>

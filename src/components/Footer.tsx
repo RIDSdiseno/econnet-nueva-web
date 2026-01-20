@@ -1,4 +1,5 @@
-﻿import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { covasaContact } from '../data/contact';
 
 const Footer = () => {
   return (
@@ -16,13 +17,13 @@ const Footer = () => {
               </div>
             </div>
             <p className="text-sm text-slate-400">
-              Abastecimiento ágil para constructoras, maestros y proyectos en crecimiento. Logística confiable y
-              asesoría técnica para cada etapa de obra.
+              Soluciones integrales para la construccion, con abastecimiento, logistica y soporte tecnico para empresas
+              y obras.
             </p>
           </div>
 
           <div>
-            <h5 className="text-xs uppercase tracking-[0.32em] text-slate-400">Navegación</h5>
+            <h5 className="text-xs uppercase tracking-[0.32em] text-slate-400">Navegacion</h5>
             <ul className="mt-4 space-y-2 text-sm">
               <li>
                 <Link to="/" className="transition hover:text-white">
@@ -53,30 +54,47 @@ const Footer = () => {
           </div>
 
           <div>
-            <h5 className="text-xs uppercase tracking-[0.32em] text-slate-400">Catálogo</h5>
+            <h5 className="text-xs uppercase tracking-[0.32em] text-slate-400">Catalogo</h5>
             <ul className="mt-4 space-y-2 text-sm text-slate-400">
-              <li>Obra gruesa y áridos</li>
+              <li>Obra gruesa y aridos</li>
               <li>Fierro, mallas y perfiles</li>
-              <li>Tabiquería y cielos</li>
+              <li>Tabiqueria y cielos</li>
               <li>Terminaciones y pintura</li>
             </ul>
           </div>
 
           <div>
-            <h5 className="text-xs uppercase tracking-[0.32em] text-slate-400">Atención</h5>
+            <h5 className="text-xs uppercase tracking-[0.32em] text-slate-400">Contacto</h5>
             <ul className="mt-4 space-y-2 text-sm text-slate-400">
-              <li>Av. Principal 1234, Santiago</li>
-              <li>+56 9 1234 5678</li>
-              <li>ventas@covasa.cl</li>
-              <li>Lun a sáb 08:30 - 18:30</li>
+              <li>{covasaContact.address}</li>
+              <li>
+                <a href={covasaContact.phoneUrl} className="transition hover:text-white">
+                  {covasaContact.phone}
+                </a>
+              </li>
+              <li>
+                <a href={covasaContact.whatsappUrl} target="_blank" rel="noreferrer" className="transition hover:text-white">
+                  {covasaContact.whatsapp}
+                </a>
+              </li>
+              <li>
+                <a href={covasaContact.emailUrl} className="transition hover:text-white">
+                  {covasaContact.email}
+                </a>
+              </li>
+              <li>
+                <a href={covasaContact.mapsUrl} target="_blank" rel="noreferrer" className="transition hover:text-white">
+                  Abrir en Google Maps
+                </a>
+              </li>
             </ul>
           </div>
         </div>
 
         <div className="mt-10 border-t border-[#2a0d0d] pt-4 text-xs uppercase tracking-[0.25em] text-slate-500">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <span>&copy; {new Date().getFullYear()} COVASA. Todos los derechos reservados.</span>
-            <span>Proveedor oficial de materiales para la construcción.</span>
+            <span>&copy; 2026 Covasa Chile. Todos los derechos reservados.</span>
+            <span>Abastecimiento y logistica para proyectos de construccion B2B.</span>
           </div>
         </div>
       </div>

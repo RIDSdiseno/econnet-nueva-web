@@ -274,9 +274,35 @@ const HomePage = () => {
                 </p>
                 <ul className="space-y-4">
                   {[
-                    { icon: '👥', text: 'Ejecutivos dedicados para proyectos.' },
-                    { icon: '💰', text: 'Condiciones especiales por volumen.' },
-                    { icon: '📊', text: 'Seguimiento postventa.' }
+                    {
+                      icon: (
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                      ),
+                      text: 'Ejecutivos dedicados para proyectos.',
+                    },
+                    {
+                      icon: (
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <path d="M20.59 13.41 11 3.83a2 2 0 0 0-1.41-.59H4a2 2 0 0 0-2 2v5.59a2 2 0 0 0 .59 1.41l9.59 9.59a2 2 0 0 0 2.82 0l5.59-5.59a2 2 0 0 0 0-2.82z" />
+                          <circle cx="7.5" cy="7.5" r="1.5" />
+                        </svg>
+                      ),
+                      text: 'Condiciones especiales por volumen.',
+                    },
+                    {
+                      icon: (
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <path d="M3 3v18h18" />
+                          <path d="M7 14l4-4 3 3 5-6" />
+                        </svg>
+                      ),
+                      text: 'Seguimiento postventa.',
+                    },
                   ].map((item, index) => (
                     <li key={index} className="flex items-start gap-3 group">
                       <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-[#E04040]/10 to-[#E04040]/5 border border-[#E04040]/20 text-base group-hover:scale-110 transition-transform duration-300">

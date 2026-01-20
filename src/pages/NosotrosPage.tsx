@@ -1,39 +1,36 @@
-import { teamMembers } from '../data/team';
-
 const principles = [
   {
-    title: 'Proposito claro',
-    description: 'Asegurar materiales confiables para que cada obra avance sin pausas.',
+    title: 'Soluciones integrales',
+    description: 'Integramos productos, logistica y soporte tecnico para obras exigentes.',
   },
   {
-    title: 'Acompanamiento experto',
-    description: 'Guiamos decisiones tecnicas y coordinamos entregas por etapa.',
+    title: 'Abastecimiento confiable',
+    description: 'Planificamos stock y reposicion para evitar detenciones en obra.',
   },
   {
-    title: 'Confianza operativa',
-    description: 'Stock, logistica y seguimiento para cumplir lo prometido.',
+    title: 'Logistica y despacho',
+    description: 'Coordinamos entregas por etapa con foco en cumplimiento y seguridad.',
   },
   {
-    title: 'Cercania',
-    description: 'Escuchamos a cada cliente para construir relaciones de largo plazo.',
+    title: 'Enfoque B2B',
+    description: 'Atendemos empresas y constructoras con procesos claros y atencion dedicada.',
   },
 ];
 
-const avatarPalettes = [
-  'from-[#B01010] to-[#D03030]',
-  'from-[#1b0b0b] to-[#3a1010]',
-  'from-[#7a1b1b] to-[#B01010]',
-  'from-[#4a1a1a] to-[#7a1b1b]',
+const commitments = [
+  {
+    title: 'Abastecimiento por proyecto',
+    description: 'Gestionamos compras por volumen y entregas programadas para obras civiles e industriales.',
+  },
+  {
+    title: 'Soporte tecnico en terreno',
+    description: 'Acompanamos especificaciones y resolvemos dudas operativas en cada etapa.',
+  },
+  {
+    title: 'Logistica coordinada',
+    description: 'Alineamos bodegas, rutas y cronogramas para cumplir ventanas de descarga.',
+  },
 ];
-
-const getInitials = (name: string) =>
-  name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
 
 const NosotrosPage = () => {
   return (
@@ -43,10 +40,13 @@ const NosotrosPage = () => {
         <div className="relative container mx-auto px-4 py-16 lg:py-20">
           <div className="max-w-2xl space-y-4">
             <p className="text-xs uppercase tracking-[0.32em] text-white/70">Nosotros</p>
-            <h1 className="font-display text-4xl leading-none sm:text-5xl md:text-6xl">Personas detras de COVASA.</h1>
+            <h1 className="font-display text-4xl leading-none sm:text-5xl md:text-6xl">
+              Soluciones integrales para la construccion.
+            </h1>
             <p className="text-lg text-white/80">
-              Somos un equipo cercano que combina experiencia en obra, logistica y abastecimiento para proyectos que no
-              pueden detenerse.
+              Covasa Chile es una empresa especializada en soluciones integrales para la construccion, abasteciendo
+              proyectos de obras civiles, industriales y comerciales con productos, logistica y soporte tecnico
+              confiable.
             </p>
           </div>
         </div>
@@ -56,14 +56,14 @@ const NosotrosPage = () => {
         <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="rounded-3xl border border-[#2a0d0d] bg-[#120606] p-6 text-white shadow-[0_18px_40px_rgba(10,0,0,0.35)]">
             <p className="text-xs uppercase tracking-[0.32em] text-[#E04040]">Quienes somos</p>
-            <h2 className="mt-3 font-display text-4xl text-white">Abastecimiento con foco humano.</h2>
+            <h2 className="mt-3 font-display text-4xl text-white">Abastecimiento confiable para la construccion.</h2>
             <p className="mt-4 text-sm text-white/75">
-              En COVASA trabajamos con constructoras y maestros para asegurar materiales criticos en cada etapa. Nuestra
-              mision es simplificar la compra de obra gruesa, terminaciones y ferreteria con un servicio consistente.
+              Trabajamos con empresas, constructoras y mandantes para asegurar soluciones integrales de suministro,
+              logistica y despacho en cada etapa de obra.
             </p>
             <p className="mt-3 text-sm text-white/75">
-              Nos mueve la confianza, el compromiso tecnico y la coordinacion precisa entre equipos comerciales y
-              logistica.
+              Nuestro enfoque B2B combina soporte tecnico en terreno con coordinacion precisa entre compras y
+              operacion.
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -84,79 +84,27 @@ const NosotrosPage = () => {
         <div className="rounded-3xl border border-[#2a0d0d] bg-[#120606] p-6 text-white shadow-[0_18px_40px_rgba(10,0,0,0.35)]">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.32em] text-[#E04040]">Nuestro equipo</p>
-              <h2 className="mt-3 font-display text-4xl text-white">Expertos en cada etapa del proyecto.</h2>
+              <p className="text-xs uppercase tracking-[0.32em] text-[#E04040]">Compromiso operativo</p>
+              <h2 className="mt-3 font-display text-4xl text-white">
+                Comprometidos con la eficiencia, la calidad y el cumplimiento en cada proyecto.
+              </h2>
             </div>
             <p className="max-w-xl text-sm text-white/75">
-              Conectamos compra, soporte tecnico y logistica para que las entregas se cumplan en tiempo y forma.
+              Alineamos abastecimiento, logistica y soporte tecnico para mantener continuidad en obra.
             </p>
           </div>
         </div>
 
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {teamMembers.map((member, index) => {
-            const initials = getInitials(member.name);
-            const palette = avatarPalettes[index % avatarPalettes.length];
-            return (
-              <article
-                key={member.id}
-                className="card-reveal rounded-3xl border border-slate-200/80 bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,32,0.08)]"
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${palette}`}>
-                    {member.photoUrl ? (
-                      <img
-                        src={member.photoUrl}
-                        alt={member.name}
-                        className="h-full w-full rounded-2xl object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <span className="text-lg font-semibold text-white">{initials}</span>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900">{member.name}</h3>
-                    <p className="text-sm text-slate-500">{member.role}</p>
-                  </div>
-                </div>
-
-                <p className="mt-4 text-sm text-slate-600">{member.bio}</p>
-
-                {(member.email || member.linkedin) && (
-                  <div className="mt-5 flex items-center gap-3">
-                    {member.email && (
-                      <a
-                        href={`mailto:${member.email}`}
-                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-[#B01010] hover:text-[#B01010] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E04040]"
-                        aria-label={`Enviar correo a ${member.name}`}
-                      >
-                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-                          <path d="M4 4h16v16H4z" />
-                          <path d="m22 6-10 7L2 6" />
-                        </svg>
-                        Email
-                      </a>
-                    )}
-                    {member.linkedin && (
-                      <a
-                        href={member.linkedin}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-[#B01010] hover:text-[#B01010] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E04040]"
-                        aria-label={`Ver LinkedIn de ${member.name}`}
-                      >
-                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                          <path d="M4.98 3.5a2.5 2.5 0 1 0 .02 5 2.5 2.5 0 0 0-.02-5zM3 9h4v12H3zm7 0h3.8v1.7h.1c.5-.9 1.7-1.9 3.6-1.9 3.8 0 4.5 2.5 4.5 5.7V21h-4v-5.3c0-1.3 0-3-1.9-3s-2.2 1.4-2.2 2.9V21h-4z" />
-                        </svg>
-                        LinkedIn
-                      </a>
-                    )}
-                  </div>
-                )}
-              </article>
-            );
-          })}
+          {commitments.map((item) => (
+            <article
+              key={item.title}
+              className="card-reveal rounded-3xl border border-slate-200/80 bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,32,0.08)]"
+            >
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{item.title}</p>
+              <p className="mt-3 text-sm font-semibold text-slate-900">{item.description}</p>
+            </article>
+          ))}
         </div>
       </section>
     </div>
