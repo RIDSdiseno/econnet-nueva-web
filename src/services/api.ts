@@ -88,6 +88,16 @@ const parseResponseWithStatus = async <T>(response: Response): Promise<T> => {
 // ==============================
 // Productos
 // ==============================
+export type ProductoVarianteCatalogo = {
+  id: string;
+  atributo: string;
+  valor: string;
+  precio: number | null;
+  stock: number;
+  stockMinimo: number;
+  skuVariante: string | null;
+};
+
 export type ProductoCatalogo = {
   id: string;
   sku: string | null;
@@ -104,6 +114,21 @@ export type ProductoCatalogo = {
   precioConDescuento: number;
   precioConDescto: number;
   stockDisponible: number;
+  // Nuevos campos para variantes
+  tieneVariantes?: boolean;
+  precioPorVariante?: boolean;
+  noControlaStock?: boolean;
+  unidadVenta?: string;
+  descripcionCorta?: string | null;
+  descripcionTecnica?: string | null;
+  variantes?: ProductoVarianteCatalogo[];
+  precioMinimo?: number;
+  precioMaximo?: number;
+  categoria?: {
+    id: string;
+    nombre: string;
+    slug: string;
+  } | null;
 };
 
 const normalizarImagen = (fotoUrl: string | null) => {
@@ -137,9 +162,26 @@ const mapearProducto = (producto: ProductoCatalogo): Product => {
     images: imagenes,
     image: imagenes[0] ?? normalizarImagen(producto.fotoUrl),
     unit: producto.unidad || producto.unidadMedida || 'unidad',
-    category: producto.tipo || 'Producto',
+    category: producto.categoria?.nombre || producto.tipo || 'Producto',
     sku: producto.sku ?? undefined,
     stockDisponible: producto.stockDisponible,
+    // Nuevos campos para variantes
+    tieneVariantes: producto.tieneVariantes,
+    precioPorVariante: producto.precioPorVariante,
+    variantes: producto.variantes?.map((v) => ({
+      id: v.id,
+      atributo: v.atributo,
+      valor: v.valor,
+      precio: v.precio,
+      stock: v.stock,
+      stockMinimo: v.stockMinimo,
+      skuVariante: v.skuVariante,
+    })),
+    precioMinimo: producto.precioMinimo,
+    precioMaximo: producto.precioMaximo,
+    descripcionCorta: producto.descripcionCorta ?? undefined,
+    descripcionTecnica: producto.descripcionTecnica ?? undefined,
+    unidadVenta: producto.unidadVenta,
   };
 };
 
@@ -321,6 +363,7 @@ export type PedidoPayload = {
   despacho?: DespachoPayload;
   items: Array<{
     productoId: string | number;
+    varianteId?: string;
     cantidad: number;
   }>;
 };

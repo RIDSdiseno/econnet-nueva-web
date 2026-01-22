@@ -26,7 +26,7 @@ const AppLayout = () => {
   return (
     <div className="app-shell flex flex-col min-h-screen">
       <Header />
-      <main className="flex-grow">
+      <main className="app-main flex-grow">
         <div key={location.pathname} className="page-transition">
           <Routes location={location}>
             <Route path="/" element={<HomePage />} />

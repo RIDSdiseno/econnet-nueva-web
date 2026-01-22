@@ -2,6 +2,10 @@
   min-height: 100vh;
 }
 
+.app-main {
+  padding-top: var(--site-header-height, 0px);
+}
+
 .font-display {
   font-family: "Teko", "Sora", sans-serif;
   letter-spacing: 0.04em;

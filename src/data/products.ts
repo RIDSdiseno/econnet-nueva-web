@@ -1,3 +1,13 @@
+export interface ProductVariante {
+  id: string;
+  atributo: string;
+  valor: string;
+  precio: number | null;
+  stock: number;
+  stockMinimo: number;
+  skuVariante: string | null;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -9,6 +19,15 @@ export interface Product {
   category: string;
   sku?: string;
   stockDisponible?: number;
+  // Nuevos campos para variantes
+  tieneVariantes?: boolean;
+  precioPorVariante?: boolean;
+  variantes?: ProductVariante[];
+  precioMinimo?: number;
+  precioMaximo?: number;
+  descripcionCorta?: string;
+  descripcionTecnica?: string;
+  unidadVenta?: string;
 }
 
 export const products: Product[] = [

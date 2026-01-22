@@ -17,32 +17,28 @@ const Header = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+  const headerRef = useRef<HTMLElement | null>(null);
   const cartButtonDesktopRef = useRef<HTMLButtonElement | null>(null);
   const cartButtonMobileRef = useRef<HTMLButtonElement | null>(null);
   const cartPopoverRef = useRef<HTMLDivElement | null>(null);
   const desktopNavClass = ({ isActive }: { isActive: boolean }) =>
-    `rounded-full px-3 py-1 transition ${
-      isActive ? 'bg-[#F7EAEA] text-[#B01010]' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+    `border-b-2 pb-1 transition ${
+      isActive
+        ? 'border-[#B01010] text-[#B01010]'
+        : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900'
     }`;
   const mobileNavClass = ({ isActive }: { isActive: boolean }) =>
-    `rounded-lg px-3 py-2 transition ${
-      isActive ? 'bg-[#F7EAEA] text-[#B01010]' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+    `border-b-2 pb-2 text-sm font-semibold transition ${
+      isActive
+        ? 'border-[#B01010] text-[#B01010]'
+        : 'border-transparent text-slate-600 hover:border-slate-200 hover:text-slate-900'
     }`;
   const cartButtonClass = (isActive: boolean) =>
-    `relative flex h-11 w-11 items-center justify-center rounded-full transition ${
-      isActive ? 'bg-[#B01010] ring-2 ring-[#E04040]/60' : 'bg-[#1b0b0b] hover:bg-[#2a0d0d]'
-    }`;
-  const cartNavClass = ({ isActive }: { isActive: boolean }) =>
-    `rounded-full border border-[#F0E0E0] px-4 py-1.5 text-sm font-semibold transition ${
-      isActive ? 'bg-[#F7EAEA] text-[#B01010]' : 'text-[#B01010] hover:bg-[#F7EAEA]'
+    `relative inline-flex items-center gap-2 rounded-full bg-[#B01010] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(176,16,16,0.25)] transition hover:bg-[#D03030] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E04040]/60 ${
+      isActive ? 'ring-2 ring-[#E04040]/60' : ''
     }`;
   const searchButtonClass =
-    'inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-[#E04040]/40';
-  const ctaClass = ({ isActive }: { isActive: boolean }) =>
-    `rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[0_12px_24px_rgba(176,16,16,0.25)] transition ${
-      isActive ? 'bg-[#D03030]' : 'bg-[#B01010] hover:bg-[#D03030]'
-    }`;
-  const mobileCtaClass = ({ isActive }: { isActive: boolean }) => `flex-1 text-center ${ctaClass({ isActive })}`;
+    'inline-flex items-center gap-2 px-2 py-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900 hover:underline hover:underline-offset-4';
   const displayName = user?.name ?? 'Usuario';
   const hasQuotes = quotes.length > 0;
   const isCartActive = location.pathname === '/cart';
@@ -96,6 +92,35 @@ const Header = () => {
       window.localStorage.setItem('covasa_font_scale', 'normal');
     }
   }, [isLargeText]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const header = headerRef.current;
+    if (!header) {
+      return;
+    }
+
+    const root = window.document.documentElement;
+    const updateHeaderHeight = () => {
+      const height = Math.ceil(header.getBoundingClientRect().height);
+      root.style.setProperty('--site-header-height', `${height}px`);
+    };
+
+    updateHeaderHeight();
+
+    const ResizeObserverCtor = window.ResizeObserver;
+    if (typeof ResizeObserverCtor === 'function') {
+      const observer = new ResizeObserverCtor(() => updateHeaderHeight());
+      observer.observe(header);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener('resize', updateHeaderHeight);
+    return () => window.removeEventListener('resize', updateHeaderHeight);
+  }, []);
 
   useEffect(() => {
     setIsCartOpen(false);
@@ -154,7 +179,7 @@ const Header = () => {
   }, [isLogoutOpen]);
 
   return (
-    <header className="sticky top-0 z-50 shadow-lg relative">
+    <header ref={headerRef} className="fixed top-0 left-0 right-0 z-50 shadow-lg">
       <div className="bg-gradient-to-r from-[#1b0b0b] via-[#2a1515] to-[#1b0b0b] text-[#F0E0E0]">
         <div className="container mx-auto px-4">
           <div className="flex flex-col gap-2 py-2.5 text-[0.65rem] uppercase tracking-[0.2em] sm:flex-row sm:items-center sm:justify-between sm:tracking-[0.28em]">
@@ -237,18 +262,46 @@ const Header = () => {
 
       <div className="bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between gap-4 py-4">
+          <div className="flex items-center gap-4 py-3 lg:py-4">
             <Link to="/" className="group flex items-center gap-3" aria-label="COVASA">
-              <div className="flex h-16 w-36 items-center justify-center overflow-hidden rounded-xl border-2 border-slate-200/80 bg-gradient-to-br from-white to-slate-50 shadow-md transition-all duration-300 group-hover:border-[#E04040]/30 group-hover:shadow-lg group-hover:scale-105 sm:h-20 sm:w-44 p-1">
+              <div className="flex h-9 items-center justify-center sm:h-10 lg:h-12">
                 <img
                   src="/img/3.png"
                   alt="COVASA"
-                  className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.08]"
+                  className="h-full w-auto object-contain transition-transform duration-300 group-hover:scale-[1.05]"
                 />
               </div>
             </Link>
 
-            <div className="hidden lg:flex items-center gap-3">
+            <nav className="hidden lg:flex flex-1 items-center justify-center gap-3 text-sm font-semibold text-slate-600 min-w-0">
+              <NavLink to="/" end className={desktopNavClass}>
+                Inicio
+              </NavLink>
+              <NavLink to="/products" className={desktopNavClass}>
+                Productos
+              </NavLink>
+              <NavLink to="/nosotros" className={desktopNavClass}>
+                Nosotros
+              </NavLink>
+              <NavLink to="/contact" className={desktopNavClass}>
+                Contacto
+              </NavLink>
+              <NavLink to="/cotizar" className={desktopNavClass}>
+                Cotización
+              </NavLink>
+              {hasQuotes && (
+                <NavLink to="/mis-cotizaciones" className={desktopNavClass}>
+                  Mis cotizaciones
+                </NavLink>
+              )}
+              {isAuthenticated && (
+                <NavLink to="/mis-pagos" className={desktopNavClass}>
+                  Mis pagos
+                </NavLink>
+              )}
+            </nav>
+
+            <div className="hidden lg:flex items-center gap-3 shrink-0">
               <button type="button" onClick={openSearch} className={searchButtonClass}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -263,52 +316,21 @@ const Header = () => {
                 </svg>
                 Buscar
               </button>
-              <NavLink to="/cotizar" className={ctaClass}>
-                Cotizar
-              </NavLink>
-            </div>
-
-            <div className="hidden lg:flex flex-1 flex-wrap items-center justify-end gap-4 text-sm font-semibold text-slate-600 min-w-0">
-              <NavLink to="/" end className={desktopNavClass}>
-                Inicio
-              </NavLink>
-              <NavLink to="/products" className={desktopNavClass}>
-                Productos
-              </NavLink>
-              <NavLink to="/nosotros" className={desktopNavClass}>
-                Nosotros
-              </NavLink>
-              <NavLink to="/contact" className={desktopNavClass}>
-                Contacto
-              </NavLink>
-              <NavLink to="/cart" className={cartNavClass}>
-                Carrito
-              </NavLink>
-              {hasQuotes && (
-                <NavLink to="/mis-cotizaciones" className={desktopNavClass}>
-                  Mis cotizaciones
-                </NavLink>
-              )}
-              {isAuthenticated && (
-                <NavLink to="/mis-pagos" className={desktopNavClass}>
-                  Mis pagos
-                </NavLink>
-              )}
               {isAuthenticated ? (
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2.5 rounded-full border border-slate-200/80 bg-gradient-to-r from-white to-slate-50/50 px-4 py-2 text-sm text-slate-700 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 rounded-full border border-slate-200/80 bg-gradient-to-r from-white to-slate-50/50 px-3 py-1.5 text-[0.85rem] text-slate-700 shadow-sm">
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#B01010] to-[#D03030] text-white shadow-md">
                       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
                         <circle cx="12" cy="8" r="4" />
                         <path d="M4 20c2-3 5-4 8-4s6 1 8 4" />
                       </svg>
                     </span>
-                    <span className="max-w-[140px] truncate font-bold">{displayName}</span>
+                    <span className="max-w-[120px] truncate font-bold">{displayName}</span>
                   </div>
                   <button
                     type="button"
                     onClick={requestLogout}
-                    className="rounded-full border border-[#E04040]/30 bg-[#E04040]/5 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#E04040]/10 hover:border-[#E04040]/50 hover:shadow-md"
+                    className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-slate-500 transition hover:text-slate-900 hover:underline hover:underline-offset-4"
                   >
                     Cerrar sesión
                   </button>
@@ -329,7 +351,7 @@ const Header = () => {
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 text-white"
+                    className="h-4 w-4 text-white"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -341,6 +363,7 @@ const Header = () => {
                       d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
                     />
                   </svg>
+                  <span>Carrito</span>
                   {totalQuantity > 0 && (
                     <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#E04040] text-[0.65rem] font-bold text-white shadow-md animate-pulse">
                       {totalQuantity}
@@ -353,7 +376,7 @@ const Header = () => {
 
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden rounded-full border border-slate-200 p-2 text-slate-700 hover:bg-slate-100"
+              className="lg:hidden ml-auto rounded-full border border-slate-200 p-2 text-slate-700 hover:bg-slate-100"
               aria-label="Toggle menu"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -381,8 +404,8 @@ const Header = () => {
                 <NavLink to="/contact" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
                   Contacto
                 </NavLink>
-                <NavLink to="/cart" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
-                  Carrito
+                <NavLink to="/cotizar" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
+                  Cotización
                 </NavLink>
                 {hasQuotes && (
                   <NavLink to="/mis-cotizaciones" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
@@ -418,7 +441,7 @@ const Header = () => {
                   <button
                     type="button"
                     onClick={requestLogout}
-                    className="mt-4 w-full rounded-full border border-[#F0E0E0] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#F7EAEA]"
+                    className="mt-4 w-full text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 transition hover:text-slate-900 hover:underline hover:underline-offset-4"
                   >
                     Cerrar sesión
                   </button>
@@ -446,10 +469,7 @@ const Header = () => {
                 </button>
               </div>
 
-              <div className="mt-4 flex items-center gap-3">
-                <NavLink to="/cotizar" className={mobileCtaClass} onClick={() => setIsMenuOpen(false)}>
-                  Cotizar
-                </NavLink>
+              <div className="mt-4">
                 <button
                   ref={cartButtonMobileRef}
                   type="button"
@@ -459,22 +479,23 @@ const Header = () => {
                   }}
                   aria-expanded={isCartOpen}
                   aria-haspopup="dialog"
-                  className={cartButtonClass(isCartActive)}
+                  className={`${cartButtonClass(isCartActive)} w-full justify-center`}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
+                    className="h-4 w-4"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    strokeWidth={2.5}
                   >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth={2}
                       d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
                     />
                   </svg>
+                  <span>Carrito</span>
                   {totalQuantity > 0 && (
                     <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#E04040] text-[0.6rem] font-bold text-white">
                       {totalQuantity}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import type { Product } from '../data/products';
+import type { Product, ProductVariante } from '../data/products';
 import { useCart } from '../context/CartContext';
 import ProductImageGallery from './ProductImageGallery';
 import { getProductImages } from '../utils/productImages';
@@ -75,6 +75,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isQuantityModalOpen, setIsQuantityModalOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariante, setSelectedVariante] = useState<ProductVariante | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const gallery = useMemo(() => getProductImages(product), [product]);
   const palette = palettes[index % palettes.length];
@@ -84,12 +85,46 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
   const titleId = `product-title-${product.id}`;
   const quantityModalId = `quantity-modal-${product.id}`;
 
+  // Variantes agrupadas por atributo
+  const variantesPorAtributo = useMemo(() => {
+    if (!product.variantes?.length) return {};
+    return product.variantes.reduce((acc, v) => {
+      if (!acc[v.atributo]) acc[v.atributo] = [];
+      acc[v.atributo].push(v);
+      return acc;
+    }, {} as Record<string, ProductVariante[]>);
+  }, [product.variantes]);
+
+  const tieneVariantes = product.tieneVariantes && (product.variantes?.length ?? 0) > 0;
+
+  // Primera variante con stock > 0, o la primera si ninguna tiene stock
+  const primeraVarianteConStock = useMemo(() => {
+    if (!product.variantes?.length) return null;
+    return product.variantes.find((v) => v.stock > 0) ?? product.variantes[0];
+  }, [product.variantes]);
+
+  // Precio efectivo basado en variante seleccionada
+  const precioEfectivo = useMemo(() => {
+    if (product.precioPorVariante && selectedVariante?.precio !== null && selectedVariante?.precio !== undefined) {
+      return selectedVariante.precio;
+    }
+    return product.price;
+  }, [product.precioPorVariante, product.price, selectedVariante]);
+
+  // Stock efectivo basado en variante seleccionada
+  const stockEfectivo = useMemo(() => {
+    if (tieneVariantes && selectedVariante) {
+      return selectedVariante.stock;
+    }
+    return product.stockDisponible ?? null;
+  }, [tieneVariantes, selectedVariante, product.stockDisponible]);
+
   const sku = product.sku ?? `COV-${String(index + 1).padStart(3, '0')}`;
-  const stockDisponible = typeof product.stockDisponible === 'number' ? product.stockDisponible : null;
+  const stockDisponible = stockEfectivo;
   const stockValor = stockDisponible ?? 0;
   const stockResumen = stockDisponible === null ? 'Por confirmar' : `${stockValor}`;
   const despacho = index % 2 === 0 ? 'Entrega 24-72h' : 'Retiro inmediato';
-  const description = product.description?.trim();
+  const description = product.descripcionCorta || product.description?.trim();
   const disponibilidadTitulo =
     stockDisponible === null ? 'Stock por confirmar' : stockDisponible > 0 ? 'Disponible para entrega' : 'Sin stock inmediato';
   const disponibilidadDetalle =
@@ -98,6 +133,9 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
       : stockDisponible > 0
         ? `${stockValor} ${stockValor === 1 ? 'unidad disponible' : 'unidades disponibles'}`
         : 'Sin stock inmediato en bodega.';
+
+  // Mostrar rango de precios si tiene variantes con precios diferentes
+  const mostrarRangoPrecios = product.precioPorVariante && product.precioMinimo !== product.precioMaximo;
 
   const details = [
     { label: 'Unidad', value: product.unit },
@@ -108,8 +146,17 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
   ].filter((detail) => detail.value);
   const previewImage = gallery[0];
 
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => setIsModalOpen(false);
+  const openModal = () => {
+    // Al abrir modal de detalle, preseleccionar variante con stock
+    if (tieneVariantes && primeraVarianteConStock) {
+      setSelectedVariante(primeraVarianteConStock);
+    }
+    setIsModalOpen(true);
+  };
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedVariante(null);
+  };
 
   const handleCardKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -121,22 +168,37 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
   const openQuantityModal = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     setQuantity(1);
+    // Si tiene variantes, seleccionar la primera con stock > 0 por defecto
+    if (tieneVariantes && primeraVarianteConStock) {
+      setSelectedVariante(primeraVarianteConStock);
+    } else {
+      setSelectedVariante(null);
+    }
     setIsQuantityModalOpen(true);
   };
 
   const closeQuantityModal = () => {
     setIsQuantityModalOpen(false);
     setQuantity(1);
+    setSelectedVariante(null);
   };
 
   const handleConfirmAddToCart = () => {
+    // Si tiene variantes obligatorias y no hay selección, no permitir
+    if (tieneVariantes && !selectedVariante) {
+      return;
+    }
+
     addItems([
       {
         productId: product.id,
+        varianteId: selectedVariante?.id,
         name: product.name,
-        description: product.description,
+        description: selectedVariante
+          ? `${product.description} - ${selectedVariante.atributo}: ${selectedVariante.valor}`
+          : product.description,
         unit: product.unit,
-        unitPrice: product.price,
+        unitPrice: precioEfectivo,
         quantity: quantity,
         image: product.image || undefined,
       },
@@ -145,7 +207,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
   };
 
   const incrementQuantity = () => {
-    const maxStock = stockDisponible ?? 9999;
+    const maxStock = stockEfectivo ?? 9999;
     if (quantity < maxStock) {
       setQuantity((prev) => prev + 1);
     }
@@ -159,12 +221,17 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
 
   const handleQuantityInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(event.target.value, 10);
-    const maxStock = stockDisponible ?? 9999;
+    const maxStock = stockEfectivo ?? 9999;
     if (!isNaN(value) && value >= 1 && value <= maxStock) {
       setQuantity(value);
     } else if (event.target.value === '') {
       setQuantity(1);
     }
+  };
+
+  const handleVarianteSelect = (variante: ProductVariante) => {
+    setSelectedVariante(variante);
+    setQuantity(1); // Reset cantidad al cambiar variante
   };
 
   useEffect(() => {
@@ -291,8 +358,17 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
               <p className="text-[0.55rem] uppercase tracking-[0.3em] text-white/50 font-semibold mb-0.5">Precio</p>
               <div className="flex items-baseline gap-1">
                 <span className="text-sm font-semibold text-white/70">CLP</span>
-                <span className="text-2xl font-black text-white">{product.price.toLocaleString('es-CL')}</span>
+                {mostrarRangoPrecios ? (
+                  <span className="text-xl font-black text-white">
+                    {product.precioMinimo?.toLocaleString('es-CL')} - {product.precioMaximo?.toLocaleString('es-CL')}
+                  </span>
+                ) : (
+                  <span className="text-2xl font-black text-white">{product.price.toLocaleString('es-CL')}</span>
+                )}
               </div>
+              {tieneVariantes && (
+                <p className="text-[0.5rem] text-white/40 mt-1">Selecciona variante para ver precio</p>
+              )}
             </div>
             <button
               type="button"
@@ -396,12 +472,66 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                           <div className="flex items-baseline gap-2">
                             <span className="text-base font-semibold text-white/70">CLP</span>
                             <p className="text-4xl font-black text-white">
-                              {product.price.toLocaleString('es-CL')}
+                              {precioEfectivo.toLocaleString('es-CL')}
                             </p>
                           </div>
-                          <p className="mt-3 text-xs text-white/60 leading-relaxed">Precio referencial por <span className="font-semibold text-white/80">{product.unit}</span>.</p>
+                          <p className="mt-3 text-xs text-white/60 leading-relaxed">
+                            Precio por <span className="font-semibold text-white/80">{product.unit}</span>.
+                            {selectedVariante && (
+                              <span className="block mt-1 text-white/50">
+                                SKU: {selectedVariante.skuVariante ?? product.sku ?? 'N/A'} | Stock: {selectedVariante.stock}
+                              </span>
+                            )}
+                          </p>
                         </div>
                       </div>
+
+                      {/* Selector de variantes en modal de detalle */}
+                      {tieneVariantes && Object.keys(variantesPorAtributo).length > 0 && (
+                        <div className="rounded-2xl border border-slate-200/60 bg-white/60 backdrop-blur-xl p-5 shadow-sm space-y-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <svg className="h-4 w-4 text-[#E04040]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+                            </svg>
+                            <p className="text-[0.6rem] uppercase tracking-[0.25em] text-slate-500 font-bold">Variantes</p>
+                          </div>
+                          {Object.entries(variantesPorAtributo).map(([atributo, variantes]) => (
+                            <div key={atributo}>
+                              <p className="text-[0.6rem] uppercase tracking-[0.2em] text-slate-500 font-bold mb-2">{atributo}</p>
+                              <div className="flex flex-wrap gap-2">
+                                {variantes.map((v) => {
+                                  const isSelected = selectedVariante?.id === v.id;
+                                  const sinStock = v.stock <= 0;
+                                  return (
+                                    <button
+                                      key={v.id}
+                                      type="button"
+                                      onClick={() => handleVarianteSelect(v)}
+                                      disabled={sinStock}
+                                      className={`
+                                        px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                                        ${isSelected
+                                          ? 'bg-gradient-to-r from-[#B01010] to-[#D03030] text-white shadow-lg scale-105'
+                                          : sinStock
+                                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed line-through'
+                                            : 'bg-white border border-slate-200 text-slate-700 hover:border-[#E04040]/50 hover:text-[#B01010]'
+                                        }
+                                      `}
+                                    >
+                                      {v.valor}
+                                      {product.precioPorVariante && v.precio !== null && (
+                                        <span className="ml-1 opacity-75">
+                                          ${v.precio.toLocaleString('es-CL')}
+                                        </span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
                       <div className="rounded-2xl border border-[#E04040]/20 bg-gradient-to-br from-white to-slate-50/80 backdrop-blur-xl p-6 shadow-md">
                         <div className="flex items-center gap-2 mb-3">
@@ -411,17 +541,22 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                           <p className="text-xs uppercase tracking-[0.3em] text-[#B01010] font-bold">Compra rapida</p>
                         </div>
                         <p className="text-sm text-slate-600 leading-relaxed mb-5">
-                          Agrega al carrito y coordina despacho o retiro en bodega.
+                          {tieneVariantes && !selectedVariante
+                            ? 'Selecciona una variante para agregar al carrito.'
+                            : 'Agrega al carrito y coordina despacho o retiro en bodega.'}
                         </p>
                         <button
                           type="button"
                           onClick={openQuantityModal}
-                          className="group w-full flex items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-[#B01010] to-[#D03030] px-6 py-3.5 text-sm font-bold text-white shadow-xl transition-all duration-300 hover:from-[#D03030] hover:to-[#E04040] hover:shadow-2xl hover:scale-[1.02] active:scale-95 border border-white/10"
+                          disabled={(tieneVariantes && !selectedVariante) || stockEfectivo === 0}
+                          className="group w-full flex items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-[#B01010] to-[#D03030] px-6 py-3.5 text-sm font-bold text-white shadow-xl transition-all duration-300 hover:from-[#D03030] hover:to-[#E04040] hover:shadow-2xl hover:scale-[1.02] active:scale-95 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                         >
                           <svg className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                           </svg>
-                          <span className="uppercase tracking-wide">Agregar al carrito</span>
+                          <span className="uppercase tracking-wide">
+                            {stockEfectivo === 0 ? 'Sin stock' : tieneVariantes && !selectedVariante ? 'Selecciona variante' : 'Agregar al carrito'}
+                          </span>
                         </button>
                       </div>
 
@@ -481,6 +616,55 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                     </button>
                   </div>
 
+                  {/* Selector de variantes */}
+                  {tieneVariantes && Object.keys(variantesPorAtributo).length > 0 && (
+                    <div className="mb-6 space-y-3">
+                      {Object.entries(variantesPorAtributo).map(([atributo, variantes]) => (
+                        <div key={atributo}>
+                          <p className="text-[0.6rem] uppercase tracking-[0.2em] text-slate-500 font-bold mb-2">{atributo}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {variantes.map((v) => {
+                              const isSelected = selectedVariante?.id === v.id;
+                              const sinStock = v.stock <= 0;
+                              return (
+                                <button
+                                  key={v.id}
+                                  type="button"
+                                  onClick={() => handleVarianteSelect(v)}
+                                  disabled={sinStock}
+                                  className={`
+                                    px-4 py-2 rounded-xl text-sm font-semibold transition-all
+                                    ${isSelected
+                                      ? 'bg-gradient-to-r from-[#B01010] to-[#D03030] text-white shadow-lg scale-105'
+                                      : sinStock
+                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed line-through'
+                                        : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-[#E04040]/50 hover:text-[#B01010]'
+                                    }
+                                  `}
+                                >
+                                  {v.valor}
+                                  {product.precioPorVariante && v.precio !== null && (
+                                    <span className="ml-1.5 text-xs opacity-75">
+                                      ${v.precio.toLocaleString('es-CL')}
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                      {selectedVariante && (
+                        <p className="text-xs text-slate-500">
+                          Seleccionado: <span className="font-semibold text-slate-700">{selectedVariante.atributo}: {selectedVariante.valor}</span>
+                          {selectedVariante.skuVariante && (
+                            <span className="ml-2 text-slate-400">({selectedVariante.skuVariante})</span>
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-center gap-4 mb-6">
                     <button
                       type="button"
@@ -497,7 +681,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                     <input
                       type="number"
                       min={1}
-                      max={stockDisponible ?? 9999}
+                      max={stockEfectivo ?? 9999}
                       value={quantity}
                       onChange={handleQuantityInputChange}
                       className="w-24 rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-center text-2xl font-bold text-slate-900 focus:border-[#E04040] focus:outline-none focus:ring-2 focus:ring-[#E04040]/20 transition-all"
@@ -507,7 +691,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                     <button
                       type="button"
                       onClick={incrementQuantity}
-                      disabled={stockDisponible !== null && quantity >= stockDisponible}
+                      disabled={stockEfectivo !== null && quantity >= stockEfectivo}
                       className="rounded-full border-2 border-slate-200 bg-white p-3 text-slate-600 transition-all hover:bg-slate-100 hover:border-[#E04040]/30 hover:text-[#B01010] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 disabled:hover:text-slate-600"
                       aria-label="Aumentar cantidad"
                     >
@@ -517,9 +701,9 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                     </button>
                   </div>
 
-                  {stockDisponible !== null && (
+                  {stockEfectivo !== null && (
                     <p className="text-center text-xs text-slate-500 mb-4">
-                      Stock disponible: <span className="font-semibold text-slate-700">{stockDisponible}</span> unidades
+                      Stock disponible: <span className="font-semibold text-slate-700">{stockEfectivo}</span> unidades
                     </p>
                   )}
 
@@ -527,7 +711,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                     <p className="text-[0.55rem] uppercase tracking-[0.3em] text-white/50 font-semibold mb-0.5">Total</p>
                     <div className="flex items-baseline gap-1">
                       <span className="text-sm font-semibold text-white/70">CLP</span>
-                      <span className="text-2xl font-black text-white">{(product.price * quantity).toLocaleString('es-CL')}</span>
+                      <span className="text-2xl font-black text-white">{(precioEfectivo * quantity).toLocaleString('es-CL')}</span>
                     </div>
                   </div>
 
@@ -542,12 +726,13 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                     <button
                       type="button"
                       onClick={handleConfirmAddToCart}
-                      className="flex-1 rounded-full bg-gradient-to-r from-[#B01010] to-[#D03030] px-5 py-3 text-sm font-bold text-white shadow-xl transition-all duration-300 hover:from-[#D03030] hover:to-[#E04040] hover:shadow-2xl hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 border border-white/10"
+                      disabled={tieneVariantes && !selectedVariante}
+                      className="flex-1 rounded-full bg-gradient-to-r from-[#B01010] to-[#D03030] px-5 py-3 text-sm font-bold text-white shadow-xl transition-all duration-300 hover:from-[#D03030] hover:to-[#E04040] hover:shadow-2xl hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
-                      Confirmar
+                      {tieneVariantes && !selectedVariante ? 'Selecciona variante' : 'Confirmar'}
                     </button>
                   </div>
                 </div>

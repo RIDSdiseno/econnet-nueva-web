@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 export type CartItem = {
   productId: string;
+  varianteId?: string; // Nuevo: ID de variante (opcional)
   name: string;
   description: string;
   unit: string;
@@ -11,12 +12,16 @@ export type CartItem = {
   image?: string;
 };
 
+// Genera una clave única para identificar items (producto + variante)
+const getItemKey = (productId: string, varianteId?: string) =>
+  varianteId ? `${productId}::${varianteId}` : productId;
+
 type CartContextValue = {
   items: CartItem[];
   totalQuantity: number;
   addItems: (items: CartItem[]) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
-  removeItem: (productId: string) => void;
+  updateQuantity: (productId: string, quantity: number, varianteId?: string) => void;
+  removeItem: (productId: string, varianteId?: string) => void;
   clearCart: () => void;
 };
 
@@ -58,18 +63,23 @@ const readStorage = (): CartItem[] => {
 
 const mergeItems = (current: CartItem[], incoming: CartItem[]) => {
   const map = new Map<string, CartItem>();
-  current.forEach((item) => map.set(item.productId, { ...item }));
+  // Usar clave compuesta: productId + varianteId
+  current.forEach((item) => {
+    const key = getItemKey(item.productId, item.varianteId);
+    map.set(key, { ...item });
+  });
 
   incoming.forEach((item) => {
-    const existing = map.get(item.productId);
+    const key = getItemKey(item.productId, item.varianteId);
+    const existing = map.get(key);
     if (existing) {
-      map.set(item.productId, {
+      map.set(key, {
         ...existing,
         ...item,
         quantity: existing.quantity + item.quantity,
       });
     } else {
-      map.set(item.productId, { ...item });
+      map.set(key, { ...item });
     }
   });
 
@@ -100,18 +110,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setItems((prev) => mergeItems(prev, incoming));
   };
 
-  const updateQuantity = (productId: string, quantity: number) => {
+  const updateQuantity = (productId: string, quantity: number, varianteId?: string) => {
+    const targetKey = getItemKey(productId, varianteId);
     setItems((prev) =>
-      prev.map((item) =>
-        item.productId === productId
+      prev.map((item) => {
+        const itemKey = getItemKey(item.productId, item.varianteId);
+        return itemKey === targetKey
           ? { ...item, quantity: Math.max(1, Math.floor(quantity) || 1) }
-          : item,
-      ),
+          : item;
+      }),
     );
   };
 
-  const removeItem = (productId: string) => {
-    setItems((prev) => prev.filter((item) => item.productId !== productId));
+  const removeItem = (productId: string, varianteId?: string) => {
+    const targetKey = getItemKey(productId, varianteId);
+    setItems((prev) => prev.filter((item) => {
+      const itemKey = getItemKey(item.productId, item.varianteId);
+      return itemKey !== targetKey;
+    }));
   };
 
   const clearCart = () => setItems([]);

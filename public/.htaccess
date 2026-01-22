@@ -1,0 +1,30 @@
+# Apache rewrite para SPA (React Router)
+# Todas las rutas que no sean archivos reales redirigen a index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Si el archivo o directorio existe, servirlo directamente
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+
+  # De lo contrario, redirigir a index.html
+  RewriteRule ^ index.html [QSA,L]
+</IfModule>
+
+# Seguridad: ocultar archivos sensibles
+<FilesMatch "^\.">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+
+# Cache para assets estaticos
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType text/css "access plus 1 month"
+  ExpiresByType application/javascript "access plus 1 month"
+</IfModule>

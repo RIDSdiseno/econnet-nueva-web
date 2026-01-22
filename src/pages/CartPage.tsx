@@ -403,6 +403,7 @@ const CartPage = () => {
     despacho: construirDespachoPayload(despacho),
     items: items.map((item) => ({
       productoId: String(item.productId),
+      varianteId: item.varianteId ?? undefined,
       cantidad: item.quantity,
     })),
   });
@@ -592,7 +593,7 @@ const CartPage = () => {
           <div className="space-y-4">
             {items.map((item) => (
               <div
-                key={item.productId}
+                key={item.varianteId ? `${item.productId}::${item.varianteId}` : item.productId}
                 className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,32,0.08)]"
               >
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -617,7 +618,7 @@ const CartPage = () => {
                         min={1}
                         step={1}
                         value={item.quantity}
-                        onChange={(event) => updateQuantity(item.productId, Number(event.target.value))}
+                        onChange={(event) => updateQuantity(item.productId, Number(event.target.value), item.varianteId)}
                         className="rounded-2xl border border-slate-200 bg-white w-full px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040]"
                       />
                     </label>
@@ -633,7 +634,7 @@ const CartPage = () => {
                     </div>
                     <button
                       type="button"
-                      onClick={() => removeItem(item.productId)}
+                      onClick={() => removeItem(item.productId, item.varianteId)}
                       className="rounded-full border border-[#F0E0E0] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#F7EAEA]"
                     >
                       Quitar
@@ -747,7 +748,7 @@ const CartPage = () => {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-6 rounded-3xl border border-[#F0E0E0] bg-white/80 p-6">
+              <div className="flex flex-col gap-6 rounded-3xl border border-[#F0E0E0] bg-white/80 p-6 md:sticky md:top-24 md:self-start">
                 <div className="flex flex-col gap-4">
                   <div className="space-y-3 text-sm text-slate-600">
                     <div>
