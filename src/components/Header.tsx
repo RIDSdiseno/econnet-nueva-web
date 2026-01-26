@@ -262,9 +262,9 @@ const Header = () => {
 
       <div className="bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
         <div className="container mx-auto px-4">
-          <div className="flex items-center gap-4 py-3 lg:py-4">
-            <Link to="/" className="group flex items-center gap-3" aria-label="COVASA">
-              <div className="flex h-12 items-center justify-center sm:h-14 lg:h-16">
+          <div className="flex items-center gap-2 py-3 lg:py-4">
+            <Link to="/" className="group flex items-center gap-3 lg:mr-2" aria-label="COVASA">
+              <div className="flex h-24 items-center justify-center sm:h-28 lg:h-32 shrink-0 scale-[1.3] origin-left">
                 <img
                   src="/img/covasa_chile.png"
                   alt="COVASA"
@@ -273,7 +273,7 @@ const Header = () => {
               </div>
             </Link>
 
-            <nav className="hidden lg:flex flex-1 items-center justify-center gap-3 text-sm font-semibold text-slate-600 min-w-0">
+            <nav className="hidden lg:flex flex-1 items-center justify-start gap-3 text-sm font-semibold text-slate-600 min-w-0 lg:ml-6">
               <NavLink to="/" end className={desktopNavClass}>
                 Inicio
               </NavLink>
