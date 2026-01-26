@@ -4,11 +4,10 @@ import { LogLevel, type Configuration } from "@azure/msal-browser";
 const clientId = (import.meta.env.VITE_MS_CLIENT_ID || "").trim();
 const tenantId = (import.meta.env.VITE_MS_TENANT_ID || "").trim();
 
-// ✅ recomendado: no hardcodear, que funcione en dev/prod
-// Si igual quieres forzarlo por env en prod, déjalo definido allá.
-const redirectUri = (
-  import.meta.env.VITE_MS_REDIRECT_URI || window.location.origin
-).trim();
+// ✅ Usa VITE_MS_REDIRECT_URI de .env / .env.production
+// Dev: http://localhost:5174  |  Prod: https://covasachile.cl
+const redirectUri = (import.meta.env.VITE_MS_REDIRECT_URI || "").trim();
+const postLogoutRedirectUri = (import.meta.env.VITE_PUBLIC_URL || "").trim();
 
 export const msalConfig: Configuration = {
   auth: {
@@ -17,6 +16,7 @@ export const msalConfig: Configuration = {
       ? `https://login.microsoftonline.com/${tenantId}`
       : "https://login.microsoftonline.com/common",
     redirectUri,
+    postLogoutRedirectUri,
 
     // ✅ Para SPAs suele convenir false (evita volver a la URL original con query/hash raros)
     navigateToLoginRequestUrl: false,

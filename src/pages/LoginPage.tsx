@@ -1,10 +1,9 @@
 ﻿import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   loginUsuario,
   registrarUsuario,
-  loginMicrosoft,
   loginGoogle,
   setAuthToken,
   type DireccionContacto,
@@ -12,7 +11,7 @@ import {
 
 // MSAL
 import { useMsal } from '@azure/msal-react';
-import type { PopupRequest } from '@azure/msal-browser';
+import type { RedirectRequest } from '@azure/msal-browser';
 
 // Google OAuth
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
@@ -31,10 +30,15 @@ type RegisterFormState = {
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
 
   // ✅ Requiere <MsalProvider /> en main.tsx
   const { instance } = useMsal();
+
+  // ✅ Guard: si ya está autenticado, redirigir a /
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
 
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [error, setError] = useState('');
@@ -62,10 +66,13 @@ const LoginPage = () => {
   const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
   const isGoogleEnabled = Boolean(googleClientId);
 
-  const microsoftRequest: PopupRequest = useMemo(
+  // ✅ Redirect request (no popup) -> flujo estable para cPanel + callback route
+  const microsoftRequest: RedirectRequest = useMemo(
     () => ({
-      scopes: ['openid', 'profile', 'email'],
+      scopes: ['openid', 'profile', 'email', 'offline_access'],
       prompt: 'select_account',
+      // opcional: puedes forzar redirectUri aquí, pero ideal que esté en msalConfig
+      // redirectUri: import.meta.env.VITE_MS_REDIRECT_URI,
     }),
     [],
   );
@@ -110,7 +117,7 @@ const LoginPage = () => {
         direccionPrincipal: (data.direccionPrincipal ?? null) as DireccionContacto | null,
       });
 
-      navigate('/products');
+      navigate('/', { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No se pudo iniciar sesion.';
       setError(message);
@@ -152,14 +159,14 @@ const LoginPage = () => {
         direccionPrincipal: null,
       });
 
-      navigate('/products');
+      navigate('/', { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No se pudo completar el registro.';
       setError(message);
     }
   };
 
-  // ✅ Login Microsoft (MSAL popup => idToken => backend => user)
+  // ✅ Login Microsoft (redirect -> el callback hace el login real y navega a /)
   const handleMicrosoftLogin = async () => {
     if (!isMicrosoftEnabled) {
       setError('Microsoft no está configurado. Falta VITE_MS_CLIENT_ID.');
@@ -170,31 +177,16 @@ const LoginPage = () => {
     setIsLoadingMicrosoft(true);
 
     try {
-      // 1) Login con MSAL
-      const result = await instance.loginPopup(microsoftRequest);
-
-      const idToken = result.idToken;
-      if (!idToken) throw new Error('No se pudo obtener idToken de Microsoft.');
-
-      // 2) Backend valida y devuelve sesión propia
-      const data = await loginMicrosoft({ idToken });
-      setAuthToken(data.token);
-
-      // 3) Guardar en AuthContext
-      login({
-        id: data.user.id,
-        name: data.user.nombre,
-        email: data.user.email,
-        telefono: data.user.telefono ?? null,
-        ecommerceClienteId: data.user.ecommerceClienteId ?? null,
-        direccionPrincipal: (data.direccionPrincipal ?? null) as DireccionContacto | null,
-      });
-
-      navigate('/products');
+      await instance.loginRedirect(microsoftRequest);
+      // No navegar aquí: el flujo termina en /auth/microsoft/callback
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'No se pudo iniciar sesion con Microsoft.';
-      setError(message);
-    } finally {
+      const msg = err instanceof Error ? err.message : 'No se pudo iniciar sesion con Microsoft.';
+      // user_cancelled -> no mostrar como error fuerte
+      if (String(msg).toLowerCase().includes('user_cancelled')) {
+        setError('');
+      } else {
+        setError(msg);
+      }
       setIsLoadingMicrosoft(false);
     }
   };
@@ -223,7 +215,7 @@ const LoginPage = () => {
         direccionPrincipal: (data.direccionPrincipal ?? null) as DireccionContacto | null,
       });
 
-      navigate('/products');
+      navigate('/', { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No se pudo iniciar sesion con Google.';
       setError(message);
@@ -322,12 +314,11 @@ const LoginPage = () => {
                       <rect x="1" y="13" width="10" height="10" fill="#00A4EF" />
                       <rect x="13" y="13" width="10" height="10" fill="#FFB900" />
                     </svg>
-                    {isLoadingMicrosoft ? 'Conectando...' : 'Microsoft'}
+                    {isLoadingMicrosoft ? 'Redirigiendo...' : 'Microsoft'}
                   </button>
 
                   {isGoogleEnabled ? (
                     <div className="relative w-full">
-                      {/* Overlay para reflejar loading (GoogleLogin no deja cambiar texto fácil) */}
                       {isLoadingGoogle && (
                         <div className="absolute inset-0 z-10 flex items-center justify-center rounded-full bg-black/40 text-xs font-semibold uppercase tracking-[0.2em] text-white">
                           Conectando...

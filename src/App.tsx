@@ -15,6 +15,7 @@ import MercadoPagoReturnPage from './pages/MercadoPagoReturnPage';
 import TransbankReturnPage from './pages/TransbankReturnPage';
 import StripeReturnPage from './pages/StripeReturnPage';
 import NosotrosPage from './pages/NosotrosPage';
+import MicrosoftCallbackPage from './pages/MicrosoftCallbackPage';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import { QuoteHistoryProvider } from './context/QuoteHistoryContext';
@@ -39,6 +40,7 @@ const AppLayout = () => {
             <Route path="/mis-pagos" element={<MyPaymentsPage />} />
             <Route path="/mis-pagos/:id" element={<PaymentDetailPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth/microsoft/callback" element={<MicrosoftCallbackPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/pago/mercadopago" element={<MercadoPagoReturnPage />} />
             <Route path="/pago/mercadopago/:resultado" element={<MercadoPagoReturnPage />} />
@@ -54,11 +56,13 @@ const AppLayout = () => {
 };
 
 function App() {
+  const baseName = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
+
   return (
     <AuthProvider>
       <QuoteHistoryProvider>
         <CartProvider>
-          <Router>
+          <Router basename={baseName}>
             <AppLayout />
           </Router>
         </CartProvider>

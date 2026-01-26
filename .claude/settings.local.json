@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma validate:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npx tsc --noEmit)"
+    ]
+  }
+}

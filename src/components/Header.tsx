@@ -264,9 +264,9 @@ const Header = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-4 py-3 lg:py-4">
             <Link to="/" className="group flex items-center gap-3" aria-label="COVASA">
-              <div className="flex h-9 items-center justify-center sm:h-10 lg:h-12">
+              <div className="flex h-12 items-center justify-center sm:h-14 lg:h-16">
                 <img
-                  src="/img/3.png"
+                  src="/img/covasa_chile.png"
                   alt="COVASA"
                   className="h-full w-auto object-contain transition-transform duration-300 group-hover:scale-[1.05]"
                 />
