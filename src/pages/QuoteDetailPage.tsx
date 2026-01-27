@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PDFDocument, StandardFonts, rgb, type Color, type PDFFont } from 'pdf-lib';
 import { obtenerCotizacionDetalle, type CotizacionDetalle } from '../services/api';
@@ -58,6 +58,71 @@ const QuoteDetailPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [refetchIndex, setRefetchIndex] = useState(0);
+  const inFlightRef = useRef(false);
+  const lastFetchedIdRef = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const fetchDetalle = useCallback(
+    async (options?: { force?: boolean }) => {
+      if (!isAuthenticated || !id) {
+        return;
+      }
+
+      if (!options?.force) {
+        if (inFlightRef.current) {
+          return;
+        }
+        if (lastFetchedIdRef.current === id) {
+          return;
+        }
+      }
+
+      if (options?.force && abortRef.current) {
+        abortRef.current.abort();
+      }
+
+      const controller = new AbortController();
+      abortRef.current = controller;
+      inFlightRef.current = true;
+      if (!detalle) {
+        setLoading(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+
+      try {
+        const data = await obtenerCotizacionDetalle(id, {
+          signal: controller.signal,
+          force: Boolean(options?.force),
+        });
+        setDetalle(data);
+        lastFetchedIdRef.current = id;
+        upsertQuote({
+          id: data.id,
+          ownerId: user?.id ?? null,
+          codigo: data.codigo,
+          total: data.total,
+          estado: data.estado,
+          createdAt: data.createdAt,
+          nombreContacto: data.nombreContacto,
+          itemsCount: data.items?.length ?? 0,
+        });
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
+        const mensaje = err instanceof Error ? err.message : 'No se pudo cargar el detalle de la cotizacion.';
+        setError(mensaje);
+        lastFetchedIdRef.current = null;
+      } finally {
+        inFlightRef.current = false;
+        abortRef.current = null;
+        setLoading(false);
+      }
+    },
+    [detalle, id, isAuthenticated, upsertQuote, user?.id],
+  );
 
   // DIAGNOSTICO (Fase 1): el GET a /api/ecommerce/cotizaciones/:id se dispara aqui (obtenerCotizacionDetalle).
   // CAUSA: el efecto se re-ejecutaba con demasiada frecuencia y el backend respondia 304 sin body,
@@ -74,51 +139,17 @@ const QuoteDetailPage = () => {
       return;
     }
 
-    let activo = true;
-    const controller = new AbortController();
-    setLoading(true);
-    setError(null);
-
-    obtenerCotizacionDetalle(id, { signal: controller.signal, force: refetchIndex > 0 })
-      .then((data) => {
-        if (!activo) {
-          return;
-        }
-        setDetalle(data);
-        upsertQuote({
-          id: data.id,
-          ownerId: user?.id ?? null,
-          codigo: data.codigo,
-          total: data.total,
-          estado: data.estado,
-          createdAt: data.createdAt,
-          nombreContacto: data.nombreContacto,
-          itemsCount: data.items?.length ?? 0,
-        });
-      })
-      .catch((err) => {
-        if (!activo) {
-          return;
-        }
-        if (err instanceof Error && err.name === 'AbortError') {
-          return;
-        }
-        const mensaje = err instanceof Error ? err.message : 'No se pudo cargar el detalle de la cotizacion.';
-        setError(mensaje);
-      })
-      .finally(() => {
-        if (activo) {
-          setLoading(false);
-        }
-      });
+    void fetchDetalle({ force: refetchIndex > 0 });
 
     return () => {
-      activo = false;
-      controller.abort();
+      abortRef.current?.abort();
     };
-  }, [id, refetchIndex, isAuthenticated, upsertQuote, user?.id]);
+  }, [fetchDetalle, id, isAuthenticated, refetchIndex]);
 
-  const handleRetry = () => setRefetchIndex((prev) => prev + 1);
+  const handleRetry = () => {
+    lastFetchedIdRef.current = null;
+    setRefetchIndex((prev) => prev + 1);
+  };
 
   const observaciones = useMemo(() => parseObservaciones(detalle?.observaciones), [detalle?.observaciones]);
 
