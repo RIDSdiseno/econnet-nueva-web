@@ -28,6 +28,8 @@ type QuoteResult = {
 
 type QuoteFormErrors = {
   name?: string;
+  email?: string;
+  phone?: string;
   contact?: string;
   items?: string;
 };
@@ -221,10 +223,24 @@ const QuotePage = () => {
 
     if (!nombre) {
       nextErrors.name = 'El nombre es obligatorio.';
+    } else if (nombre.length > 200) {
+      nextErrors.name = 'El nombre no puede superar los 200 caracteres.';
+    }
+
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      nextErrors.email = 'Ingresa un email valido (ej: correo@empresa.cl).';
+    } else if (email && email.length > 200) {
+      nextErrors.email = 'El email no puede superar los 200 caracteres.';
+    }
+
+    if (telefono && telefono.length < 6) {
+      nextErrors.phone = 'El telefono debe tener al menos 6 caracteres.';
+    } else if (telefono && telefono.length > 30) {
+      nextErrors.phone = 'El telefono no puede superar los 30 caracteres.';
     }
 
     if (!email && !telefono) {
-      nextErrors.contact = 'Email o teléfono es obligatorio.';
+      nextErrors.contact = 'Debes ingresar al menos un email o telefono.';
     }
 
     if (items.length === 0) {
@@ -236,7 +252,7 @@ const QuotePage = () => {
       }
       const itemCantidadInvalida = items.find((item) => item.cantidad < 1);
       if (!nextErrors.items && itemCantidadInvalida) {
-        nextErrors.items = 'La cantidad mínima es 1.';
+        nextErrors.items = 'La cantidad minima es 1.';
       }
     }
 
@@ -296,6 +312,27 @@ const QuotePage = () => {
     } catch (err) {
       const mensajeError = err instanceof Error ? err.message : 'No se pudo enviar la cotizacion.';
       setSubmitError(mensajeError);
+
+      const details = (err as { details?: { fieldErrors?: Record<string, string[]> } }).details;
+      if (details?.fieldErrors) {
+        const backendErrors: QuoteFormErrors = {};
+        const fe = details.fieldErrors;
+        if (fe['contacto.nombre'] || fe['nombre']) {
+          backendErrors.name = (fe['contacto.nombre'] ?? fe['nombre'])?.[0];
+        }
+        if (fe['contacto.email'] || fe['email']) {
+          backendErrors.email = (fe['contacto.email'] ?? fe['email'])?.[0];
+        }
+        if (fe['contacto.telefono'] || fe['telefono']) {
+          backendErrors.phone = (fe['contacto.telefono'] ?? fe['telefono'])?.[0];
+        }
+        if (fe['items']) {
+          backendErrors.items = fe['items'][0];
+        }
+        if (Object.keys(backendErrors).length > 0) {
+          setFormErrors(backendErrors);
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -362,7 +399,7 @@ const QuotePage = () => {
                 <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
                   Nombre *
                   <div className="relative">
-                    <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                    <div className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${formErrors.name ? 'text-[#B01010]' : 'text-slate-400'}`}>
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
@@ -403,7 +440,7 @@ const QuotePage = () => {
                 <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
                   Email
                   <div className="relative">
-                    <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                    <div className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${formErrors.email || hasContactError ? 'text-[#B01010]' : 'text-slate-400'}`}>
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
@@ -412,21 +449,23 @@ const QuotePage = () => {
                       type="email"
                       name="email"
                       placeholder="correo@empresa.cl"
-                      aria-invalid={hasContactError}
+                      aria-invalid={Boolean(formErrors.email) || hasContactError}
                       onInput={() => {
+                        clearFieldError('email');
                         clearFieldError('contact');
                         clearSubmitError();
                       }}
                       className={`rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300 ${
-                        hasContactError ? 'border-[#B01010] focus:ring-[#B01010]' : ''
+                        formErrors.email || hasContactError ? 'border-[#B01010] focus:ring-[#B01010]' : ''
                       }`}
                     />
                   </div>
+                  {formErrors.email && <span className="text-xs text-[#B01010]">{formErrors.email}</span>}
                 </label>
                 <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
                   Telefono
                   <div className="relative">
-                    <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                    <div className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${formErrors.phone || hasContactError ? 'text-[#B01010]' : 'text-slate-400'}`}>
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                       </svg>
@@ -435,16 +474,18 @@ const QuotePage = () => {
                       type="tel"
                       name="phone"
                       placeholder="+56 9 1234 5678"
-                      aria-invalid={hasContactError}
+                      aria-invalid={Boolean(formErrors.phone) || hasContactError}
                       onInput={() => {
+                        clearFieldError('phone');
                         clearFieldError('contact');
                         clearSubmitError();
                       }}
                       className={`rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300 ${
-                        hasContactError ? 'border-[#B01010] focus:ring-[#B01010]' : ''
+                        formErrors.phone || hasContactError ? 'border-[#B01010] focus:ring-[#B01010]' : ''
                       }`}
                     />
                   </div>
+                  {formErrors.phone && <span className="text-xs text-[#B01010]">{formErrors.phone}</span>}
                 </label>
                 <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
                   Direccion

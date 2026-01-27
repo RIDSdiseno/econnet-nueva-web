@@ -264,7 +264,7 @@ const Header = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-4 py-3 lg:py-4">
             <Link to="/" className="group flex items-center gap-3" aria-label="COVASA">
-              <div className="flex h-12 items-center justify-center sm:h-14 lg:h-16">
+              <div className="flex h-20 items-center justify-center sm:h-24 lg:h-28">
                 <img
                   src="/img/covasa_chile.png"
                   alt="COVASA"

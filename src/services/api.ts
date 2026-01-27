@@ -114,6 +114,7 @@ export type ProductoCatalogo = {
   precioConDescuento: number;
   precioConDescto: number;
   stockDisponible: number;
+  activo?: boolean | number | string | null;
   // Nuevos campos para variantes
   tieneVariantes?: boolean;
   precioPorVariante?: boolean;
@@ -124,6 +125,12 @@ export type ProductoCatalogo = {
   variantes?: ProductoVarianteCatalogo[];
   precioMinimo?: number;
   precioMaximo?: number;
+  // Flags de visibilidad (segun backend)
+  visibleEcommerce?: boolean | number | string | null;
+  visibleEnEcommerce?: boolean | number | string | null;
+  ecommerceVisible?: boolean | number | string | null;
+  visible?: boolean | number | string | null;
+  mostrarEnEcommerce?: boolean | number | string | null;
   categoria?: {
     id: string;
     nombre: string;
@@ -185,6 +192,37 @@ const mapearProducto = (producto: ProductoCatalogo): Product => {
   };
 };
 
+const normalizarFlag = (valor: unknown): boolean | undefined => {
+  if (typeof valor === 'boolean') return valor;
+  if (typeof valor === 'number') return valor !== 0;
+  if (typeof valor === 'string') {
+    const normalizado = valor.trim().toLowerCase();
+    if (['si', 'true', '1', 'activo', 'publicado', 'visible'].includes(normalizado)) return true;
+    if (['no', 'false', '0', 'inactivo', 'oculto'].includes(normalizado)) return false;
+  }
+  return undefined;
+};
+
+const esVisibleEnEcommerce = (producto: ProductoCatalogo): boolean => {
+  const activoFlag = normalizarFlag(producto.activo);
+  if (activoFlag === false) return false;
+
+  const candidatos: unknown[] = [
+    producto.visibleEcommerce,
+    producto.visibleEnEcommerce,
+    producto.ecommerceVisible,
+    producto.visible,
+    producto.mostrarEnEcommerce,
+  ];
+
+  for (const valor of candidatos) {
+    const flag = normalizarFlag(valor);
+    if (flag !== undefined) return flag;
+  }
+
+  return activoFlag ?? true;
+};
+
 export const obtenerProductos = async (params?: { search?: string; limit?: number }): Promise<Product[]> => {
   const query = new URLSearchParams();
   const search = params?.search?.trim();
@@ -199,7 +237,7 @@ export const obtenerProductos = async (params?: { search?: string; limit?: numbe
   });
 
   const data = await parseResponse<ProductoCatalogo[]>(response);
-  return data.map(mapearProducto);
+  return data.filter(esVisibleEnEcommerce).map(mapearProducto);
 };
 
 // ==============================
