@@ -87,7 +87,16 @@ const Footer = () => {
                 </a>
               </li>
               <li>
-                <a href={covasaContact.whatsappUrl} target="_blank" rel="noreferrer" className="transition hover:text-white">
+                <a
+                  href={covasaContact.whatsappUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 transition hover:text-white"
+                  aria-label={`WhatsApp ${covasaContact.whatsapp}`}
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                    <path d="M20.52 3.49A11.82 11.82 0 0 0 12.05 0 11.9 11.9 0 0 0 1.5 17.45L0 24l6.74-1.47A11.9 11.9 0 0 0 12.05 24h.01A11.9 11.9 0 0 0 24 12.1c0-3.2-1.25-6.2-3.48-8.61ZM12.06 21.9h-.01a9.9 9.9 0 0 1-5.04-1.38l-.36-.21-4 .87.85-3.9-.23-.38A9.9 9.9 0 1 1 12.06 21.9Zm5.75-7.43c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.66.15-.2.3-.76.97-.93 1.17-.17.2-.34.22-.64.07-.3-.15-1.27-.47-2.42-1.5-.89-.8-1.49-1.78-1.66-2.08-.17-.3-.02-.46.13-.61.14-.14.3-.34.45-.5.15-.17.2-.28.3-.47.1-.2.05-.37-.02-.52-.08-.15-.66-1.6-.9-2.2-.24-.57-.49-.5-.66-.5h-.57c-.2 0-.52.08-.8.37-.27.3-1.05 1.03-1.05 2.5s1.08 2.9 1.23 3.1c.15.2 2.12 3.25 5.14 4.56.72.31 1.28.5 1.71.64.72.23 1.38.2 1.9.12.58-.09 1.76-.72 2.01-1.42.25-.7.25-1.3.17-1.42-.08-.12-.27-.2-.57-.35Z" />
+                  </svg>
                   {covasaContact.whatsapp}
                 </a>
               </li>
@@ -113,6 +122,18 @@ const Footer = () => {
           </div>
         </div>
       </div>
+
+      <a
+        href={covasaContact.whatsappUrl}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Contactar por WhatsApp"
+        className="fixed bottom-4 right-4 z-50 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_12px_24px_rgba(37,211,102,0.35)] transition hover:bg-[#1EBE57] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:bottom-6 sm:right-6 sm:h-12 sm:w-12"
+      >
+        <svg viewBox="0 0 24 24" className="h-4 w-4 sm:h-5 sm:w-5" fill="currentColor" aria-hidden="true">
+          <path d="M20.52 3.49A11.82 11.82 0 0 0 12.05 0 11.9 11.9 0 0 0 1.5 17.45L0 24l6.74-1.47A11.9 11.9 0 0 0 12.05 24h.01A11.9 11.9 0 0 0 24 12.1c0-3.2-1.25-6.2-3.48-8.61ZM12.06 21.9h-.01a9.9 9.9 0 0 1-5.04-1.38l-.36-.21-4 .87.85-3.9-.23-.38A9.9 9.9 0 1 1 12.06 21.9Zm5.75-7.43c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.66.15-.2.3-.76.97-.93 1.17-.17.2-.34.22-.64.07-.3-.15-1.27-.47-2.42-1.5-.89-.8-1.49-1.78-1.66-2.08-.17-.3-.02-.46.13-.61.14-.14.3-.34.45-.5.15-.17.2-.28.3-.47.1-.2.05-.37-.02-.52-.08-.15-.66-1.6-.9-2.2-.24-.57-.49-.5-.66-.5h-.57c-.2 0-.52.08-.8.37-.27.3-1.05 1.03-1.05 2.5s1.08 2.9 1.23 3.1c.15.2 2.12 3.25 5.14 4.56.72.31 1.28.5 1.71.64.72.23 1.38.2 1.9.12.58-.09 1.76-.72 2.01-1.42.25-.7.25-1.3.17-1.42-.08-.12-.27-.2-.57-.35Z" />
+        </svg>
+      </a>
     </footer>
   );
 };

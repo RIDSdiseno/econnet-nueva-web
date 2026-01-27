@@ -17,10 +17,13 @@ const Header = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+  const [isRegistroOpen, setIsRegistroOpen] = useState(false);
   const headerRef = useRef<HTMLElement | null>(null);
   const cartButtonDesktopRef = useRef<HTMLButtonElement | null>(null);
   const cartButtonMobileRef = useRef<HTMLButtonElement | null>(null);
   const cartPopoverRef = useRef<HTMLDivElement | null>(null);
+  const registroButtonRef = useRef<HTMLButtonElement | null>(null);
+  const registroPopoverRef = useRef<HTMLDivElement | null>(null);
   const desktopNavClass = ({ isActive }: { isActive: boolean }) =>
     `border-b-2 pb-1 transition ${
       isActive
@@ -39,8 +42,13 @@ const Header = () => {
     }`;
   const searchButtonClass =
     'inline-flex items-center gap-2 px-2 py-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900 hover:underline hover:underline-offset-4';
+  const registroButtonClass = (isActive: boolean) =>
+    `relative inline-flex h-11 w-11 items-center justify-center rounded-full border bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 ${
+      isActive ? 'border-[#B01010] ring-2 ring-[#E04040]/50' : 'border-slate-200'
+    }`;
   const displayName = user?.name ?? 'Usuario';
-  const hasQuotes = quotes.length > 0;
+  const userId = user?.id ?? null;
+  const hasQuotes = userId ? quotes.some((quote) => quote.ownerId === userId) : false;
   const isCartActive = location.pathname === '/cart';
   const totalCarrito = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const previewItems = items.slice(0, 3);
@@ -48,6 +56,7 @@ const Header = () => {
   const openSearch = () => {
     setIsSearchOpen(true);
     setIsCartOpen(false);
+    setIsRegistroOpen(false);
     setIsMenuOpen(false);
   };
 
@@ -56,6 +65,7 @@ const Header = () => {
     setIsMenuOpen(false);
     setIsCartOpen(false);
     setIsSearchOpen(false);
+    setIsRegistroOpen(false);
   };
 
   const handleLogout = () => {
@@ -64,6 +74,7 @@ const Header = () => {
     setIsMenuOpen(false);
     setIsSearchOpen(false);
     setIsCartOpen(false);
+    setIsRegistroOpen(false);
     navigate('/login', { replace: true });
   };
 
@@ -126,6 +137,7 @@ const Header = () => {
     setIsCartOpen(false);
     setIsSearchOpen(false);
     setIsLogoutOpen(false);
+    setIsRegistroOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -159,6 +171,37 @@ const Header = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isCartOpen]);
+
+  useEffect(() => {
+    if (!isRegistroOpen) {
+      return;
+    }
+
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (
+        registroButtonRef.current?.contains(target) ||
+        registroPopoverRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setIsRegistroOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsRegistroOpen(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handleClick);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('mousedown', handleClick);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isRegistroOpen]);
 
   useEffect(() => {
     if (!isLogoutOpen) {
@@ -262,9 +305,9 @@ const Header = () => {
 
       <div className="bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
         <div className="container mx-auto px-4">
-          <div className="flex items-center gap-4 py-3 lg:py-4">
-            <Link to="/" className="group flex items-center gap-3" aria-label="COVASA">
-              <div className="flex h-20 items-center justify-center sm:h-24 lg:h-28">
+          <div className="flex items-center gap-2 py-3 lg:py-4">
+            <Link to="/" className="group flex items-center gap-3 lg:mr-2" aria-label="COVASA">
+              <div className="flex h-24 items-center justify-center sm:h-28 lg:h-32 shrink-0 scale-[1.3] origin-left">
                 <img
                   src="/img/covasa_chile.png"
                   alt="COVASA"
@@ -273,7 +316,7 @@ const Header = () => {
               </div>
             </Link>
 
-            <nav className="hidden lg:flex flex-1 items-center justify-center gap-3 text-sm font-semibold text-slate-600 min-w-0">
+            <nav className="hidden lg:flex flex-1 items-center justify-start gap-3 text-sm font-semibold text-slate-600 min-w-0 lg:ml-6">
               <NavLink to="/" end className={desktopNavClass}>
                 Inicio
               </NavLink>
@@ -289,16 +332,6 @@ const Header = () => {
               <NavLink to="/cotizar" className={desktopNavClass}>
                 Cotización
               </NavLink>
-              {hasQuotes && (
-                <NavLink to="/mis-cotizaciones" className={desktopNavClass}>
-                  Mis cotizaciones
-                </NavLink>
-              )}
-              {isAuthenticated && (
-                <NavLink to="/mis-pagos" className={desktopNavClass}>
-                  Mis pagos
-                </NavLink>
-              )}
             </nav>
 
             <div className="hidden lg:flex items-center gap-3 shrink-0">
@@ -316,6 +349,64 @@ const Header = () => {
                 </svg>
                 Buscar
               </button>
+              <div className="relative">
+                <button
+                  ref={registroButtonRef}
+                  type="button"
+                  onClick={() => {
+                    setIsRegistroOpen((prev) => !prev);
+                    setIsCartOpen(false);
+                    setIsSearchOpen(false);
+                    setIsMenuOpen(false);
+                    setIsLogoutOpen(false);
+                  }}
+                  aria-haspopup="menu"
+                  aria-expanded={isRegistroOpen}
+                  className={registroButtonClass(isRegistroOpen)}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h10" />
+                  </svg>
+                  {(hasQuotes || isAuthenticated) && (
+                    <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_2px_white]"></span>
+                  )}
+                </button>
+
+                {isRegistroOpen && (
+                  <div
+                    ref={registroPopoverRef}
+                    role="menu"
+                    className="modal-panel absolute right-0 top-full mt-3 w-56 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-[0_20px_50px_rgba(15,23,32,0.2)] backdrop-blur-md"
+                  >
+                    <p className="text-[0.65rem] uppercase tracking-[0.28em] text-slate-400">
+                      Registro
+                    </p>
+                    <div className="mt-3 grid gap-2 text-sm">
+                      <NavLink
+                        to="/mis-cotizaciones"
+                        onClick={() => setIsRegistroOpen(false)}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                      >
+                        Mis cotizaciones
+                      </NavLink>
+                      <NavLink
+                        to="/mis-pagos"
+                        onClick={() => setIsRegistroOpen(false)}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                      >
+                        Mis pagos
+                      </NavLink>
+                    </div>
+                  </div>
+                )}
+              </div>
               {isAuthenticated ? (
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-2 rounded-full border border-slate-200/80 bg-gradient-to-r from-white to-slate-50/50 px-3 py-1.5 text-[0.85rem] text-slate-700 shadow-sm">
@@ -407,22 +498,32 @@ const Header = () => {
                 <NavLink to="/cotizar" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
                   Cotización
                 </NavLink>
-                {hasQuotes && (
-                  <NavLink to="/mis-cotizaciones" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
-                    Mis cotizaciones
-                  </NavLink>
-                )}
-                {isAuthenticated && (
-                  <NavLink to="/mis-pagos" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
-                    Mis pagos
-                  </NavLink>
-                )}
                 {!isAuthenticated && (
                   <NavLink to="/login" className={mobileNavClass} onClick={() => setIsMenuOpen(false)}>
                     Iniciar sesión
                   </NavLink>
                 )}
               </nav>
+
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+                <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Registro</p>
+                <div className="mt-3 grid gap-2 text-sm">
+                  <NavLink
+                    to="/mis-cotizaciones"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    Mis cotizaciones
+                  </NavLink>
+                  <NavLink
+                    to="/mis-pagos"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    Mis pagos
+                  </NavLink>
+                </div>
+              </div>
 
               {isAuthenticated && (
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">

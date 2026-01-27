@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
 export type CartItem = {
@@ -103,14 +103,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     [items],
   );
 
-  const addItems = (incoming: CartItem[]) => {
+  // Keep callbacks stable to avoid re-running effects in consumers (e.g., return pages).
+  const addItems = useCallback((incoming: CartItem[]) => {
     if (incoming.length === 0) {
       return;
     }
     setItems((prev) => mergeItems(prev, incoming));
-  };
+  }, []);
 
-  const updateQuantity = (productId: string, quantity: number, varianteId?: string) => {
+  const updateQuantity = useCallback((productId: string, quantity: number, varianteId?: string) => {
     const targetKey = getItemKey(productId, varianteId);
     setItems((prev) =>
       prev.map((item) => {
@@ -120,17 +121,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           : item;
       }),
     );
-  };
+  }, []);
 
-  const removeItem = (productId: string, varianteId?: string) => {
+  const removeItem = useCallback((productId: string, varianteId?: string) => {
     const targetKey = getItemKey(productId, varianteId);
     setItems((prev) => prev.filter((item) => {
       const itemKey = getItemKey(item.productId, item.varianteId);
       return itemKey !== targetKey;
     }));
-  };
+  }, []);
 
-  const clearCart = () => setItems([]);
+  const clearCart = useCallback(() => setItems([]), []);
 
   const value = useMemo(
     () => ({
@@ -141,7 +142,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       removeItem,
       clearCart,
     }),
-    [items, totalQuantity],
+    [items, totalQuantity, addItems, updateQuantity, removeItem, clearCart],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

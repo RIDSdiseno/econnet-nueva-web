@@ -778,6 +778,7 @@ export type CotizacionItemPayload = {
 };
 
 export type CotizacionPayload = {
+  ecommerceClienteId?: string;
   contacto: CotizacionContactoPayload;
   items: CotizacionItemPayload[];
   origen: string;
@@ -820,14 +821,38 @@ export type CotizacionDetalle = {
   items: CotizacionDetalleItem[];
 };
 
-export const crearCotizacion = async (payload: CotizacionPayload) => {
+export type CotizacionResumen = {
+  id: string;
+  codigo?: string | null;
+  total: number;
+  estado?: string | null;
+  createdAt?: string | null;
+  nombreContacto?: string | null;
+  itemsCount?: number | null;
+};
+
+export const crearCotizacion = async (
+  payload: CotizacionPayload,
+  options?: { idempotencyKey?: string }
+) => {
   const response = await fetch(`${API_BASE_URL}/ecommerce/cotizaciones`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...authHeaders(),
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(
+      options?.idempotencyKey
+        ? {
+            ...payload,
+            metadata: {
+              ...payload.metadata,
+              idempotencyKey: options.idempotencyKey,
+            },
+          }
+        : payload,
+    ),
   });
 
   return parseResponse<{
@@ -839,13 +864,96 @@ export const crearCotizacion = async (payload: CotizacionPayload) => {
   }>(response);
 };
 
-export const obtenerCotizacionDetalle = async (id: string) => {
-  const response = await fetch(`${API_BASE_URL}/ecommerce/cotizaciones/${id}`, {
+export const listarMisCotizaciones = async () => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/cotizaciones`, {
     headers: {
       Accept: 'application/json',
       ...authHeaders(),
     },
   });
 
-  return parseResponse<CotizacionDetalle>(response);
+  return parseResponse<CotizacionResumen[]>(response);
+};
+
+export const eliminarCotizacion = async (id: string) => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/cotizaciones/${id}`, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+      ...authHeaders(),
+    },
+  });
+
+  return parseResponse<{ id: string }>(response);
+};
+
+const COTIZACION_DETALLE_CACHE_MS = 30 * 1000;
+const COTIZACION_DETALLE_THROTTLE_MS = 1000;
+type CotizacionDetalleCacheEntry = {
+  expiresAt: number;
+  promise: Promise<CotizacionDetalle>;
+  data?: CotizacionDetalle;
+  lastRequestAt?: number;
+};
+const cotizacionDetalleCache = new Map<string, CotizacionDetalleCacheEntry>();
+
+export const obtenerCotizacionDetalle = async (
+  id: string,
+  options?: { signal?: AbortSignal; force?: boolean },
+) => {
+  const now = Date.now();
+  const cached = cotizacionDetalleCache.get(id);
+  if (!options?.force && cached) {
+    if (cached.expiresAt > now) {
+      return cached.promise;
+    }
+    if (cached.lastRequestAt && now - cached.lastRequestAt < COTIZACION_DETALLE_THROTTLE_MS) {
+      return cached.promise;
+    }
+  }
+
+  const baseUrl = `${API_BASE_URL}/ecommerce/cotizaciones/${id}`;
+  const responsePromise = fetch(baseUrl, {
+    cache: 'no-store',
+    headers: {
+      Accept: 'application/json',
+      ...authHeaders(),
+    },
+    signal: options?.signal,
+  }).then(async (response) => {
+    if (response.status === 304) {
+      if (cached?.data) {
+        return cached.data;
+      }
+      // Fallback: fuerza un 200 evitando revalidaciones si el browser envia If-None-Match.
+      const cacheBustUrl = `${baseUrl}?t=${Date.now()}`;
+      const fallbackResponse = await fetch(cacheBustUrl, {
+        cache: 'no-store',
+        headers: {
+          Accept: 'application/json',
+          ...authHeaders(),
+        },
+        signal: options?.signal,
+      });
+      return parseResponse<CotizacionDetalle>(fallbackResponse);
+    }
+    return parseResponse<CotizacionDetalle>(response);
+  });
+
+  const entry: CotizacionDetalleCacheEntry = {
+    expiresAt: now + COTIZACION_DETALLE_CACHE_MS,
+    promise: responsePromise,
+    data: cached?.data,
+    lastRequestAt: now,
+  };
+  cotizacionDetalleCache.set(id, entry);
+
+  try {
+    const data = await responsePromise;
+    entry.data = data;
+    return data;
+  } catch (error) {
+    cotizacionDetalleCache.delete(id);
+    throw error;
+  }
 };
