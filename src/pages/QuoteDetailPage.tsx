@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PDFDocument, StandardFonts, rgb, type Color, type PDFFont } from 'pdf-lib';
 import { obtenerCotizacionDetalle, type CotizacionDetalle } from '../services/api';
@@ -56,7 +56,6 @@ const QuoteDetailPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [refetchIndex, setRefetchIndex] = useState(0);
-  const lastRequestKeyRef = useRef<string | null>(null);
 
   // DIAGNOSTICO (Fase 1): el GET a /api/ecommerce/cotizaciones/:id se dispara aqui (obtenerCotizacionDetalle).
   // CAUSA: el efecto se re-ejecutaba con demasiada frecuencia y el backend respondia 304 sin body,
@@ -68,12 +67,6 @@ const QuoteDetailPage = () => {
       setLoading(false);
       return;
     }
-
-    const requestKey = `${id}:${refetchIndex}`;
-    if (lastRequestKeyRef.current === requestKey) {
-      return;
-    }
-    lastRequestKeyRef.current = requestKey;
 
     let activo = true;
     const controller = new AbortController();
