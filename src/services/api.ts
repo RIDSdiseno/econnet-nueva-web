@@ -740,6 +740,7 @@ export type CotizacionItemPayload = {
 };
 
 export type CotizacionPayload = {
+  ecommerceClienteId?: string;
   contacto: CotizacionContactoPayload;
   items: CotizacionItemPayload[];
   origen: string;

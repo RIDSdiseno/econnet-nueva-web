@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 export type QuoteSummary = {
   id: string;
+  ownerId?: string | null;
   codigo?: string | null;
   total: number;
   estado?: string | null;
@@ -45,7 +46,9 @@ const readStorage = (): QuoteSummary[] => {
         if (!normalizedId) {
           return null;
         }
-        return { ...(item as QuoteSummary), id: normalizedId };
+        const rawOwnerId = (item as { ownerId?: unknown }).ownerId;
+        const normalizedOwnerId = typeof rawOwnerId === 'string' ? rawOwnerId.trim() : undefined;
+        return { ...(item as QuoteSummary), id: normalizedId, ownerId: normalizedOwnerId };
       })
       .filter((item): item is QuoteSummary => Boolean(item));
   } catch {

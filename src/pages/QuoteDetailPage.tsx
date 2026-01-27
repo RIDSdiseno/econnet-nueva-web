@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PDFDocument, StandardFonts, rgb, type Color, type PDFFont } from 'pdf-lib';
 import { obtenerCotizacionDetalle, type CotizacionDetalle } from '../services/api';
 import { useQuoteHistory } from '../context/QuoteHistoryContext';
+import { useAuth } from '../context/AuthContext';
 
 const formatCurrency = (value: number) => `CLP ${value.toLocaleString('es-CL')}`;
 
@@ -49,8 +50,9 @@ const wrapText = (text: string, maxWidth: number, font: PDFFont, size: number) =
 const QuoteDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
   const { quotes, upsertQuote, removeQuote } = useQuoteHistory();
-  const summary = quotes.find((quote) => quote.id === id);
+  const summary = quotes.find((quote) => quote.id === id && quote.ownerId === user?.id);
   const [detalle, setDetalle] = useState<CotizacionDetalle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +64,10 @@ const QuoteDetailPage = () => {
   // generando loop y flicker. Se corrige con deps estables, dedupe/cache en API y refetch manual.
   // BUGFIX: prevent duplicate fetches (StrictMode/double render) and only refetch on id change or user action.
   useEffect(() => {
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
     if (!id) {
       setError('No se encontro la cotizacion.');
       setLoading(false);
@@ -81,6 +87,7 @@ const QuoteDetailPage = () => {
         setDetalle(data);
         upsertQuote({
           id: data.id,
+          ownerId: user?.id ?? null,
           codigo: data.codigo,
           total: data.total,
           estado: data.estado,
@@ -109,7 +116,7 @@ const QuoteDetailPage = () => {
       activo = false;
       controller.abort();
     };
-  }, [id, refetchIndex, upsertQuote]);
+  }, [id, refetchIndex, isAuthenticated, upsertQuote, user?.id]);
 
   const handleRetry = () => setRefetchIndex((prev) => prev + 1);
 
@@ -238,6 +245,28 @@ const QuoteDetailPage = () => {
 
   const codigo = detalle?.codigo || summary?.codigo || id || '---';
   const total = detalle?.total ?? summary?.total ?? 0;
+
+  if (!isAuthenticated) {
+    return (
+      <div className="container mx-auto px-4 py-16">
+        <div className="rounded-3xl border border-[#F0E0E0] bg-white/90 p-10 text-center shadow-[0_20px_50px_rgba(15,23,32,0.08)]">
+          <p className="text-xs uppercase tracking-[0.32em] text-[#B01010]">Detalle de cotización</p>
+          <h1 className="mt-3 font-display text-3xl text-slate-900">Inicia sesión</h1>
+          <p className="mt-3 text-sm text-slate-600">
+            Debes iniciar sesión para ver esta cotización.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <Link
+              to="/login"
+              className="rounded-full bg-[#B01010] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(176,16,16,0.3)] transition hover:bg-[#D03030]"
+            >
+              Ir a login
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10 pb-20">

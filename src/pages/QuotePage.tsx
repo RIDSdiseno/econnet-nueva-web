@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Product } from '../data/products';
@@ -6,6 +6,7 @@ import { useProductos } from '../hooks/useProductos';
 import { crearCotizacion } from '../services/api';
 import ModalSuccessCotizacion from '../components/ModalSuccessCotizacion';
 import { useQuoteHistory } from '../context/QuoteHistoryContext';
+import { useAuth } from '../context/AuthContext';
 
 type QuoteItem = {
   id: string;
@@ -76,6 +77,7 @@ const buildDetalleUrl = (resultado: QuoteResult) => {
 
 const QuotePage = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
   const { upsertQuote } = useQuoteHistory();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,9 +85,12 @@ const QuotePage = () => {
   const [submitted, setSubmitted] = useState<QuoteResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const idempotencyKeyRef = useRef<string | null>(null);
   const [formErrors, setFormErrors] = useState<QuoteFormErrors>({});
   const [successOpen, setSuccessOpen] = useState(false);
   const [successStage, setSuccessStage] = useState<'confirming' | 'confirmed'>('confirming');
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [items, setItems] = useState<QuoteItem[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const totalNet = items.reduce((acc, item) => acc + item.cantidad * item.precioUnitario, 0);
@@ -202,7 +207,12 @@ const QuotePage = () => {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (submitting) {
+    if (!isAuthenticated) {
+      setSubmitError('Debes iniciar sesion para enviar una cotizacion.');
+      setShowLoginModal(true);
+      return;
+    }
+    if (submitting || submittingRef.current) {
       return;
     }
 
@@ -247,13 +257,22 @@ const QuotePage = () => {
     }
 
     setFormErrors({});
+    submittingRef.current = true;
     setSubmitting(true);
     setSubmitError(null);
     setSubmitted(null);
     setSuccessOpen(false);
 
     try {
+      const idempotencyKey =
+        idempotencyKeyRef.current ??
+        (typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+      idempotencyKeyRef.current = idempotencyKey;
+
       const resultado = await crearCotizacion({
+        ecommerceClienteId: user?.ecommerceClienteId ?? undefined,
         contacto: {
           nombre,
           email: email || null,
@@ -274,12 +293,13 @@ const QuotePage = () => {
           userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
           utm: leerUtm(),
         },
-      });
+      }, { idempotencyKey });
 
       const createdAt = resultado.createdAt ?? new Date().toISOString();
       setSubmitted({ ...resultado, createdAt });
       upsertQuote({
         id: resultado.id,
+        ownerId: user?.id ?? null,
         codigo: resultado.codigo,
         total: resultado.total,
         estado: resultado.estado,
@@ -297,6 +317,8 @@ const QuotePage = () => {
       const mensajeError = err instanceof Error ? err.message : 'No se pudo enviar la cotizacion.';
       setSubmitError(mensajeError);
     } finally {
+      submittingRef.current = false;
+      idempotencyKeyRef.current = null;
       setSubmitting(false);
     }
   };
@@ -324,6 +346,21 @@ const QuotePage = () => {
             onSubmit={handleSubmit}
             aria-busy={submitting}
           >
+            {!isAuthenticated && (
+              <div
+                role="alert"
+                className="rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-3 text-sm text-[#B01010]"
+              >
+                Debes iniciar sesion para enviar una cotizacion.
+                <button
+                  type="button"
+                  onClick={() => setShowLoginModal(true)}
+                  className="ml-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] underline underline-offset-4"
+                >
+                  Iniciar sesion
+                </button>
+              </div>
+            )}
             <div className="relative overflow-hidden rounded-2xl bg-[#1b0b0b] px-5 py-5 text-white shadow-[0_18px_40px_rgba(10,0,0,0.28)] sm:px-6 sm:py-6">
               <div className="absolute inset-0 hero-grid opacity-10"></div>
               <div className="relative space-y-2">
@@ -727,6 +764,56 @@ const QuotePage = () => {
         onClose={handleCloseSuccess}
         onView={detalleUrl ? handleViewSuccess : undefined}
       />
+
+      {showLoginModal && (
+        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-[#1b0b0b]/40 px-4">
+          <div className="modal-panel w-full max-w-md rounded-3xl border border-[#F0E0E0] bg-white p-6 shadow-[0_20px_50px_rgba(176,16,16,0.15)]">
+            <div className="flex items-center justify-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F7EAEA]">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-7 w-7 text-[#B01010]"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+                </svg>
+              </div>
+            </div>
+            <p className="mt-4 text-center text-xs uppercase tracking-[0.32em] text-[#B01010]">
+              Inicio de sesion requerido
+            </p>
+            <h2 className="mt-2 text-center text-2xl font-semibold text-slate-900">
+              Debes iniciar sesion
+            </h2>
+            <p className="mt-2 text-center text-sm text-slate-600">
+              Para enviar una cotizacion necesitas iniciar sesion.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setShowLoginModal(false)}
+                className="flex-1 rounded-full border border-[#F0E0E0] px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLoginModal(false);
+                  navigate('/login');
+                }}
+                className="flex-1 rounded-full bg-[#B01010] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(176,16,16,0.3)] transition hover:bg-[#D03030]"
+              >
+                Iniciar sesion
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -47,7 +47,8 @@ const Header = () => {
       isActive ? 'border-[#B01010] ring-2 ring-[#E04040]/50' : 'border-slate-200'
     }`;
   const displayName = user?.name ?? 'Usuario';
-  const hasQuotes = quotes.length > 0;
+  const userId = user?.id ?? null;
+  const hasQuotes = userId ? quotes.some((quote) => quote.ownerId === userId) : false;
   const isCartActive = location.pathname === '/cart';
   const totalCarrito = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const previewItems = items.slice(0, 3);
