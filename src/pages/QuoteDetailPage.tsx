@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PDFDocument, StandardFonts, rgb, type Color, type PDFFont } from 'pdf-lib';
-import { obtenerCotizacionDetalle } from '../services/api';
+import { eliminarCotizacion, obtenerCotizacionDetalle } from '../services/api';
 import { useQuoteHistory } from '../context/QuoteHistoryContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -198,15 +198,22 @@ const QuoteDetailPage = () => {
     void descargarPdf();
   };
 
-  const handleRemove = () => {
+  const handleRemove = async () => {
     if (!id) {
       return;
     }
     if (typeof window !== 'undefined' && !window.confirm('Quitar esta cotizacion de tu lista?')) {
       return;
     }
-    removeQuote(id);
-    navigate('/mis-cotizaciones');
+    setError(null);
+    try {
+      await eliminarCotizacion(id);
+      removeQuote(id);
+      navigate('/mis-cotizaciones');
+    } catch (err) {
+      const mensaje = err instanceof Error ? err.message : 'No se pudo eliminar la cotizacion.';
+      setError(mensaje);
+    }
   };
 
   const codigo = summary?.codigo || id || '---';

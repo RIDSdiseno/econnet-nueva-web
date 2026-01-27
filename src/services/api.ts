@@ -783,6 +783,16 @@ export type CotizacionDetalle = {
   items: CotizacionDetalleItem[];
 };
 
+export type CotizacionResumen = {
+  id: string;
+  codigo?: string | null;
+  total: number;
+  estado?: string | null;
+  createdAt?: string | null;
+  nombreContacto?: string | null;
+  itemsCount?: number | null;
+};
+
 export const crearCotizacion = async (
   payload: CotizacionPayload,
   options?: { idempotencyKey?: string }
@@ -792,6 +802,7 @@ export const crearCotizacion = async (
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...authHeaders(),
     },
     body: JSON.stringify(
       options?.idempotencyKey
@@ -813,6 +824,29 @@ export const crearCotizacion = async (
     estado: string;
     createdAt?: string;
   }>(response);
+};
+
+export const listarMisCotizaciones = async () => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/cotizaciones`, {
+    headers: {
+      Accept: 'application/json',
+      ...authHeaders(),
+    },
+  });
+
+  return parseResponse<CotizacionResumen[]>(response);
+};
+
+export const eliminarCotizacion = async (id: string) => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/cotizaciones/${id}`, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+      ...authHeaders(),
+    },
+  });
+
+  return parseResponse<{ id: string }>(response);
 };
 
 const COTIZACION_DETALLE_CACHE_MS = 30 * 1000;
