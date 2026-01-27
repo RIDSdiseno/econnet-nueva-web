@@ -792,9 +792,18 @@ export const crearCotizacion = async (
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      ...(options?.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {}),
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(
+      options?.idempotencyKey
+        ? {
+            ...payload,
+            metadata: {
+              ...payload.metadata,
+              idempotencyKey: options.idempotencyKey,
+            },
+          }
+        : payload,
+    ),
   });
 
   return parseResponse<{
@@ -836,8 +845,6 @@ export const obtenerCotizacionDetalle = async (
     cache: 'no-store',
     headers: {
       Accept: 'application/json',
-      'Cache-Control': 'no-cache',
-      Pragma: 'no-cache',
       ...authHeaders(),
     },
     signal: options?.signal,
@@ -852,8 +859,6 @@ export const obtenerCotizacionDetalle = async (
         cache: 'no-store',
         headers: {
           Accept: 'application/json',
-          'Cache-Control': 'no-store',
-          Pragma: 'no-cache',
           ...authHeaders(),
         },
         signal: options?.signal,
