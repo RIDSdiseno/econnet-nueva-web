@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
 export type QuoteSummary = {
@@ -65,18 +65,19 @@ export const QuoteHistoryProvider = ({ children }: { children: ReactNode }) => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
   }, [quotes]);
 
-  const upsertQuote = (quote: QuoteSummary) => {
+  // Keep callbacks stable to avoid triggering effect loops in consumers.
+  const upsertQuote = useCallback((quote: QuoteSummary) => {
     if (!quote.id) {
       return;
     }
     setQuotes((prev) => [quote, ...prev.filter((item) => item.id !== quote.id)]);
-  };
+  }, []);
 
-  const removeQuote = (id: string) => {
+  const removeQuote = useCallback((id: string) => {
     setQuotes((prev) => prev.filter((item) => item.id !== id));
-  };
+  }, []);
 
-  const clearQuotes = () => setQuotes([]);
+  const clearQuotes = useCallback(() => setQuotes([]), []);
 
   const value = useMemo(
     () => ({
@@ -85,7 +86,7 @@ export const QuoteHistoryProvider = ({ children }: { children: ReactNode }) => {
       removeQuote,
       clearQuotes,
     }),
-    [quotes],
+    [quotes, upsertQuote, removeQuote, clearQuotes],
   );
 
   return <QuoteHistoryContext.Provider value={value}>{children}</QuoteHistoryContext.Provider>;

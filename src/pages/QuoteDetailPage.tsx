@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PDFDocument, StandardFonts, rgb, type Color, type PDFFont } from 'pdf-lib';
 import { obtenerCotizacionDetalle, type CotizacionDetalle } from '../services/api';
@@ -55,7 +55,13 @@ const QuoteDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [refetchIndex, setRefetchIndex] = useState(0);
+  const lastRequestKeyRef = useRef<string | null>(null);
 
+  // DIAGNOSTICO (Fase 1): el GET a /api/ecommerce/cotizaciones/:id se dispara aqui (obtenerCotizacionDetalle).
+  // CAUSA: el efecto se re-ejecutaba con demasiada frecuencia y el backend respondia 304 sin body,
+  // generando loop y flicker. Se corrige con deps estables, dedupe/cache en API y refetch manual.
+  // BUGFIX: prevent duplicate fetches (StrictMode/double render) and only refetch on id change or user action.
   useEffect(() => {
     if (!id) {
       setError('No se encontro la cotizacion.');
@@ -63,11 +69,18 @@ const QuoteDetailPage = () => {
       return;
     }
 
+    const requestKey = `${id}:${refetchIndex}`;
+    if (lastRequestKeyRef.current === requestKey) {
+      return;
+    }
+    lastRequestKeyRef.current = requestKey;
+
     let activo = true;
+    const controller = new AbortController();
     setLoading(true);
     setError(null);
 
-    obtenerCotizacionDetalle(id)
+    obtenerCotizacionDetalle(id, { signal: controller.signal, force: refetchIndex > 0 })
       .then((data) => {
         if (!activo) {
           return;
@@ -87,6 +100,9 @@ const QuoteDetailPage = () => {
         if (!activo) {
           return;
         }
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
         const mensaje = err instanceof Error ? err.message : 'No se pudo cargar el detalle de la cotizacion.';
         setError(mensaje);
       })
@@ -98,8 +114,11 @@ const QuoteDetailPage = () => {
 
     return () => {
       activo = false;
+      controller.abort();
     };
-  }, [id, upsertQuote]);
+  }, [id, refetchIndex, upsertQuote]);
+
+  const handleRetry = () => setRefetchIndex((prev) => prev + 1);
 
   const observaciones = useMemo(() => parseObservaciones(detalle?.observaciones), [detalle?.observaciones]);
 
@@ -253,6 +272,14 @@ const QuoteDetailPage = () => {
             </Link>
             <button
               type="button"
+              onClick={handleRetry}
+              disabled={loading}
+              className="rounded-full border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? 'Actualizando...' : 'Actualizar'}
+            </button>
+            <button
+              type="button"
               onClick={descargarPdf}
               disabled={!detalle || downloading}
               className="rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(16,185,129,0.35)] transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
@@ -273,16 +300,26 @@ const QuoteDetailPage = () => {
           </div>
         </div>
 
-        {loading && (
+        {loading && !detalle && (
           <p className="mt-6 text-sm text-slate-500">Cargando detalle de la cotizacion...</p>
+        )}
+        {loading && detalle && (
+          <p className="mt-6 text-sm text-slate-500">Actualizando detalle de la cotizacion...</p>
         )}
         {error && (
           <div className="mt-6 rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-3 text-sm text-[#B01010]">
-            {error}
+            <p>{error}</p>
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="mt-3 rounded-full border border-[#F0E0E0] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#F7EAEA]"
+            >
+              Reintentar
+            </button>
           </div>
         )}
 
-        {!loading && detalle && (
+        {detalle && (
           <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="zoom-card space-y-6 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,32,0.08)]">
               <div className="grid gap-3 sm:grid-cols-2">
