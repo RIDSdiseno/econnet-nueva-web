@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npx prisma validate:*)",
       "Bash(npx prisma:*)",
-      "Bash(npx tsc --noEmit)"
+      "Bash(npx tsc --noEmit)",
+      "WebFetch(domain:covasabackecomerce-production.up.railway.app)"
     ]
   }
 }
