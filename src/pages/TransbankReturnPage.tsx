@@ -28,25 +28,39 @@ const TransbankReturnPage = () => {
     const params = new URLSearchParams(location.search);
     return {
       pagoId: params.get('pagoId') || '',
+      pedidoId: params.get('pedidoId') || '',
       estado: (params.get('estado') || '').toUpperCase(),
+      status: (params.get('status') || '').toLowerCase(),
+      tbkStatus: (params.get('tbkStatus') || '').toUpperCase(),
     };
   }, [location.search]);
 
   useEffect(() => {
-    if (parametros.estado === 'CONFIRMADO') {
+    const estadoNormalizado =
+      parametros.status === 'success'
+        ? 'CONFIRMADO'
+        : parametros.status === 'failed'
+        ? 'RECHAZADO'
+        : parametros.tbkStatus === 'AUTHORIZED'
+        ? 'CONFIRMADO'
+        : parametros.tbkStatus
+        ? 'RECHAZADO'
+        : parametros.estado;
+
+    if (estadoNormalizado === 'CONFIRMADO') {
       setEstado('confirmado');
       setMensaje('Pago confirmado. Gracias por tu compra.');
       clearCart();
       return;
     }
 
-    if (parametros.estado === 'RECHAZADO') {
+    if (estadoNormalizado === 'RECHAZADO') {
       setEstado('rechazado');
       setMensaje('El pago fue rechazado o no pudo confirmarse.');
       return;
     }
 
-    if (parametros.estado === 'ERROR') {
+    if (estadoNormalizado === 'ERROR') {
       setEstado('error');
       setMensaje('No pudimos confirmar el pago. Intenta nuevamente.');
       return;
