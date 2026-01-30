@@ -255,6 +255,15 @@ export const obtenerProductos = async (params?: { search?: string; limit?: numbe
   return data.filter(esVisibleEnEcommerce).map(mapearProducto);
 };
 
+export const obtenerProductoPorId = async (id: string): Promise<Product> => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/productos/${id}`, {
+    headers: { Accept: 'application/json' },
+  });
+
+  const data = await parseResponse<ProductoCatalogo>(response);
+  return mapearProducto(data);
+};
+
 // ==============================
 // Usuarios / Auth
 // ==============================

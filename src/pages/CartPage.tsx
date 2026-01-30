@@ -45,6 +45,8 @@ const stripePublishableKey = normalizarEnvValor(
     (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST as string | undefined),
 );
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+const mostrarMercadoPago = false;
+const mostrarStripe = false;
 
 const obtenerClienteIdInicial = () => {
   if (typeof window === 'undefined') {
@@ -835,19 +837,21 @@ const CartPage = () => {
                 <div className="flex flex-col gap-3 border-t border-[#F0E0E0] pt-4">
                   <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Pagar con</p>
                   <div className="flex flex-col gap-3 sm:flex-row">
-                    <button
-                      type="button"
-                      onClick={iniciarPagoMercadoPago}
-                      disabled={Boolean(metodoPago)}
-                      aria-label="Pagar con Mercado Pago"
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#009ee3] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(0,158,227,0.25)] transition hover:bg-[#007fc2] disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                        <path d="M12.02 5.5c-3.7 0-6.7 1.78-6.7 4.05 0 2.25 2.99 4.05 6.7 4.05 1.2 0 2.35-.2 3.34-.57.24.5.71 1.62 1.9 1.9.45.1.92.06 1.35-.1.37-.13.72-.35.98-.65.44-.53.64-1.18.64-2.04 0-2.27-3-4.64-8.21-4.64z" />
-                        <path d="M15.8 11.62c-.25-.56-.76-1.14-1.62-1.14-1.08 0-1.91.75-2.44 1.26-.3.3-.6.57-.95.74-.4.2-.8.25-1.2.16-.51-.1-.99-.43-1.2-.7l.62-.48c.13.17.4.38.74.45.23.05.45.02.69-.1.27-.14.52-.38.78-.64.6-.58 1.52-1.5 2.96-1.5 1.27 0 2.03.82 2.33 1.48l-.71.47z" />
-                      </svg>
-                      {metodoPago === 'mercadopago' ? 'Redirigiendo...' : 'Mercado Pago'}
-                    </button>
+                    {mostrarMercadoPago && (
+                      <button
+                        type="button"
+                        onClick={iniciarPagoMercadoPago}
+                        disabled={Boolean(metodoPago)}
+                        aria-label="Pagar con Mercado Pago"
+                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#009ee3] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(0,158,227,0.25)] transition hover:bg-[#007fc2] disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                          <path d="M12.02 5.5c-3.7 0-6.7 1.78-6.7 4.05 0 2.25 2.99 4.05 6.7 4.05 1.2 0 2.35-.2 3.34-.57.24.5.71 1.62 1.9 1.9.45.1.92.06 1.35-.1.37-.13.72-.35.98-.65.44-.53.64-1.18.64-2.04 0-2.27-3-4.64-8.21-4.64z" />
+                          <path d="M15.8 11.62c-.25-.56-.76-1.14-1.62-1.14-1.08 0-1.91.75-2.44 1.26-.3.3-.6.57-.95.74-.4.2-.8.25-1.2.16-.51-.1-.99-.43-1.2-.7l.62-.48c.13.17.4.38.74.45.23.05.45.02.69-.1.27-.14.52-.38.78-.64.6-.58 1.52-1.5 2.96-1.5 1.27 0 2.03.82 2.33 1.48l-.71.47z" />
+                        </svg>
+                        {metodoPago === 'mercadopago' ? 'Redirigiendo...' : 'Mercado Pago'}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={iniciarPagoTransbank}
@@ -869,42 +873,44 @@ const CartPage = () => {
                       </svg>
                       {metodoPago === 'transbank' ? 'Redirigiendo...' : 'Transbank'}
                     </button>
-                    <button
-                      type="button"
-                      onClick={iniciarPagoStripe}
-                      disabled={stripeBotonDeshabilitado}
-                      aria-label="Pagar con Stripe"
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#0f172a] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(15,23,42,0.25)] transition hover:bg-[#111827] disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        className="h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        aria-hidden="true"
+                    {mostrarStripe && (
+                      <button
+                        type="button"
+                        onClick={iniciarPagoStripe}
+                        disabled={stripeBotonDeshabilitado}
+                        aria-label="Pagar con Stripe"
+                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#0f172a] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(15,23,42,0.25)] transition hover:bg-[#111827] disabled:cursor-not-allowed disabled:opacity-70"
                       >
-                        <rect x="3" y="6" width="18" height="12" rx="2" />
-                        <path d="M3 10h18" />
-                        <path d="M7 14h4" />
-                      </svg>
-                      {stripeCargando ? 'Preparando...' : 'Stripe (Tarjeta / Apple Pay)'}
-                    </button>
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        >
+                          <rect x="3" y="6" width="18" height="12" rx="2" />
+                          <path d="M3 10h18" />
+                          <path d="M7 14h4" />
+                        </svg>
+                        {stripeCargando ? 'Preparando...' : 'Stripe (Tarjeta / Apple Pay)'}
+                      </button>
+                    )}
                   </div>
-                  {!stripeKeyDisponible && (
+                  {mostrarStripe && !stripeKeyDisponible && (
                     <p className="text-xs text-[#B01010]">
                       Configura `VITE_STRIPE_PUBLISHABLE_KEY` para habilitar Stripe.
                     </p>
                   )}
-                  {stripeKeyDisponible && stripeApplePayDisponible === false && (
+                  {mostrarStripe && stripeKeyDisponible && stripeApplePayDisponible === false && (
                     <p className="text-xs text-slate-500">
                       Apple Pay disponible solo en Safari/iPhone/Mac. Puedes pagar con tarjeta.
                     </p>
                   )}
-                  {stripeKeyDisponible && stripeApplePayDisponible === null && (
+                  {mostrarStripe && stripeKeyDisponible && stripeApplePayDisponible === null && (
                     <p className="text-xs text-slate-500">Verificando disponibilidad de Apple Pay...</p>
                   )}
-                  {stripeModalVisible && (
+                  {mostrarStripe && stripeModalVisible && (
                     <div className="rounded-3xl border border-slate-200 bg-white/80 p-4">
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center justify-between gap-3">
@@ -952,9 +958,11 @@ const CartPage = () => {
                     </div>
                   )}
                   {pagoError && <p className="text-xs text-[#B01010]">{pagoError}</p>}
-                  <p className="text-xs text-slate-500">
-                    Stripe permite pagar con tarjeta y Apple Pay cuando esta disponible en el navegador.
-                  </p>
+                  {mostrarStripe && (
+                    <p className="text-xs text-slate-500">
+                      Stripe permite pagar con tarjeta y Apple Pay cuando esta disponible en el navegador.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
