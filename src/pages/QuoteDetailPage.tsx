@@ -136,11 +136,11 @@ const QuoteDetailPage = () => {
 
       const doc = await PDFDocument.create();
       const pageSize: [number, number] = [595.28, 841.89];
-      const margin = 32;
-      const headerHeight = 72;
+      const margin = 28;
+      const headerHeight = 110;
       const footerHeight = 60;
       const contentWidth = pageSize[0] - margin * 2;
-      const contentBottom = margin + footerHeight + 8;
+      const contentBottom = margin + footerHeight + 10;
       const contentTop = pageSize[1] - margin - headerHeight;
 
       const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -148,9 +148,11 @@ const QuoteDetailPage = () => {
       const colors = {
         primary: rgb(0.69, 0.06, 0.06),
         text: rgb(0.12, 0.12, 0.12),
-        muted: rgb(0.45, 0.45, 0.45),
-        line: rgb(0.9, 0.9, 0.9),
+        muted: rgb(0.42, 0.42, 0.42),
+        line: rgb(0.88, 0.88, 0.88),
         headerFill: rgb(0.96, 0.96, 0.96),
+        rowFill: rgb(0.985, 0.985, 0.985),
+        softFill: rgb(0.99, 0.99, 0.99),
       };
 
       const embeddedImageCache = new Map<string, any>();
@@ -158,7 +160,7 @@ const QuoteDetailPage = () => {
         if (embeddedImageCache.has(url)) {
           return embeddedImageCache.get(url);
         }
-        const payload = await fetchImageBytes(url);
+        const payload = await fetchImageBytes(url, { maxBytes: 1_500_000, timeoutMs: 7000 });
         if (!payload) {
           embeddedImageCache.set(url, null);
           return null;
@@ -192,65 +194,71 @@ const QuoteDetailPage = () => {
       const drawHeader = () => {
         const { width, height } = page.getSize();
         const top = height - margin;
+        const headerBottom = top - headerHeight;
 
         if (logoImage) {
           const dims = logoImage.scale(1);
-          const maxHeight = 40;
-          const scale = Math.min(maxHeight / dims.height, 1);
+          const maxWidth = 170;
+          const maxHeight = 60;
+          const scale = Math.min(maxWidth / dims.width, maxHeight / dims.height, 1);
           const logoWidth = dims.width * scale;
           const logoHeight = dims.height * scale;
           page.drawImage(logoImage, {
             x: margin,
-            y: top - logoHeight,
+            y: top - 12 - logoHeight,
             width: logoWidth,
             height: logoHeight,
           });
         } else {
           page.drawText(COMPANY_NAME, {
             x: margin,
-            y: top - 18,
-            size: 16,
+            y: top - 28,
+            size: 18,
             font: bold,
             color: colors.primary,
           });
         }
 
-        const title = 'Cotizacion';
-        const titleSize = 18;
-        const titleWidth = bold.widthOfTextAtSize(title, titleSize);
-        page.drawText(title, {
-          x: width - margin - titleWidth,
-          y: top - titleSize,
-          size: titleSize,
+        const boxWidth = 190;
+        const boxHeight = 60;
+        const boxX = width - margin - boxWidth;
+        const boxY = top - boxHeight - 10;
+        page.drawRectangle({
+          x: boxX,
+          y: boxY,
+          width: boxWidth,
+          height: boxHeight,
+          borderColor: colors.line,
+          borderWidth: 1,
+          color: colors.headerFill,
+        });
+
+        page.drawText('COTIZACION', {
+          x: boxX + 10,
+          y: boxY + boxHeight - 20,
+          size: 14,
           font: bold,
           color: colors.primary,
         });
-
-        const folio = `Folio: ${detalleActual.codigo || detalleActual.id}`;
-        const folioSize = 10;
-        const folioWidth = font.widthOfTextAtSize(folio, folioSize);
-        page.drawText(folio, {
-          x: width - margin - folioWidth,
-          y: top - titleSize - 16,
-          size: folioSize,
+        page.drawText(`Folio: ${detalleActual.codigo || detalleActual.id}`, {
+          x: boxX + 10,
+          y: boxY + boxHeight - 36,
+          size: 9,
           font,
-          color: colors.muted,
+          color: colors.text,
         });
-
-        const fecha = `Fecha: ${formatDateCL(detalleActual.createdAt)}`;
-        const fechaWidth = font.widthOfTextAtSize(fecha, folioSize);
-        page.drawText(fecha, {
-          x: width - margin - fechaWidth,
-          y: top - titleSize - 30,
-          size: folioSize,
+        page.drawText(`Fecha: ${formatDateCL(detalleActual.createdAt)}`, {
+          x: boxX + 10,
+          y: boxY + 12,
+          size: 9,
           font,
-          color: colors.muted,
+          color: colors.text,
         });
 
         page.drawLine({
-          start: { x: margin, y: top - headerHeight + 8 },
-          end: { x: width - margin, y: top - headerHeight + 8 },
-          thickness: 0.5,
+          start: { x: margin, y: headerBottom + 6 },
+          end: { x: width - margin, y: headerBottom + 6 },
+          thickness: 0.6,
           color: colors.line,
         });
       };
@@ -312,8 +320,8 @@ const QuoteDetailPage = () => {
       };
 
       const drawSectionTitle = (title: string) => {
-        ensureSpace(26);
-        const size = 12;
+        ensureSpace(24);
+        const size = 11;
         page.drawText(title, {
           x: margin,
           y: cursorY - size,
@@ -325,50 +333,10 @@ const QuoteDetailPage = () => {
         page.drawLine({
           start: { x: margin, y: cursorY },
           end: { x: page.getSize().width - margin, y: cursorY },
-          thickness: 0.5,
+          thickness: 0.6,
           color: colors.line,
         });
-        cursorY -= 12;
-      };
-
-      const drawKeyValueColumn = (
-        items: Array<{ label: string; value?: string | null }>,
-        x: number,
-        startY: number,
-        width: number
-      ) => {
-        let y = startY;
-        const labelSize = 8;
-        const valueSize = 10;
-        items.forEach((item) => {
-          const value = (item.value ?? '').trim();
-          if (!value) return;
-          y -= labelSize;
-          page.drawText(item.label.toUpperCase(), { x, y, size: labelSize, font, color: colors.muted });
-          y -= 2;
-          const lines = wrapText(value, width, font, valueSize);
-          lines.forEach((line) => {
-            y -= valueSize;
-            page.drawText(line, { x, y, size: valueSize, font, color: colors.text });
-            y -= 2;
-          });
-          y -= 6;
-        });
-        return y;
-      };
-
-      const drawKeyValueColumns = (
-        left: Array<{ label: string; value?: string | null }>,
-        right: Array<{ label: string; value?: string | null }>
-      ) => {
-        const colGap = 16;
-        const colWidth = (contentWidth - colGap) / 2;
-        const estimated = Math.max(left.length, right.length) * 22 + 10;
-        ensureSpace(estimated);
-        const startY = cursorY;
-        const leftEnd = drawKeyValueColumn(left, margin, startY, colWidth);
-        const rightEnd = drawKeyValueColumn(right, margin + colWidth + colGap, startY, colWidth);
-        cursorY = Math.min(leftEnd, rightEnd) - 4;
+        cursorY -= 10;
       };
 
       const drawParagraph = (text: string, size = 10) => {
@@ -387,13 +355,168 @@ const QuoteDetailPage = () => {
         cursorY -= 4;
       };
 
+      const safeText = (value?: string | number | null) => {
+        if (value === undefined || value === null) return '-';
+        const text = String(value).trim();
+        return text ? text : '-';
+      };
+
+      const buildLines = (lines: string[], width: number, size: number) => {
+        const output: string[] = [];
+        lines.forEach((line) => {
+          const trimmed = line.trim();
+          if (!trimmed) {
+            output.push('');
+            return;
+          }
+          output.push(...wrapText(trimmed, width, font, size));
+        });
+        return output;
+      };
+
+      const drawInfoTable = (
+        rows: Array<{ left: { label: string; value?: string | null }; right: { label: string; value?: string | null } }>
+      ) => {
+        const colWidth = contentWidth / 2;
+        const padding = 6;
+        const labelSize = 8;
+        const valueSize = 10;
+        const lineHeight = 12;
+        const prepared = rows.map((row) => {
+          const leftValue = safeText(row.left.value);
+          const rightValue = safeText(row.right.value);
+          const leftLines = wrapText(leftValue, colWidth - padding * 2, font, valueSize);
+          const rightLines = wrapText(rightValue, colWidth - padding * 2, font, valueSize);
+          const maxLines = Math.max(leftLines.length || 1, rightLines.length || 1);
+          const rowHeight = padding * 2 + labelSize + 4 + maxLines * lineHeight;
+          return { row, leftLines, rightLines, rowHeight };
+        });
+        const totalHeight = prepared.reduce((sum, row) => sum + row.rowHeight, 0);
+        ensureSpace(totalHeight + 6);
+
+        let y = cursorY;
+        prepared.forEach((entry) => {
+          const rowTop = y;
+          const rowBottom = y - entry.rowHeight;
+          page.drawRectangle({
+            x: margin,
+            y: rowBottom,
+            width: contentWidth,
+            height: entry.rowHeight,
+            borderColor: colors.line,
+            borderWidth: 0.6,
+          });
+          page.drawLine({
+            start: { x: margin + colWidth, y: rowBottom },
+            end: { x: margin + colWidth, y: rowTop },
+            thickness: 0.6,
+            color: colors.line,
+          });
+
+          const leftLabelY = rowTop - padding - labelSize;
+          page.drawText(entry.row.left.label.toUpperCase(), {
+            x: margin + padding,
+            y: leftLabelY,
+            size: labelSize,
+            font,
+            color: colors.muted,
+          });
+          const rightLabelY = rowTop - padding - labelSize;
+          page.drawText(entry.row.right.label.toUpperCase(), {
+            x: margin + colWidth + padding,
+            y: rightLabelY,
+            size: labelSize,
+            font,
+            color: colors.muted,
+          });
+
+          const leftStartY = leftLabelY - 4 - valueSize;
+          entry.leftLines.forEach((line, index) => {
+            page.drawText(line, {
+              x: margin + padding,
+              y: leftStartY - index * lineHeight,
+              size: valueSize,
+              font,
+              color: colors.text,
+            });
+          });
+          const rightStartY = rightLabelY - 4 - valueSize;
+          entry.rightLines.forEach((line, index) => {
+            page.drawText(line, {
+              x: margin + colWidth + padding,
+              y: rightStartY - index * lineHeight,
+              size: valueSize,
+              font,
+              color: colors.text,
+            });
+          });
+
+          y = rowBottom;
+        });
+        cursorY = y - 12;
+      };
+
+      const drawBoxedTextBlock = (
+        title: string,
+        lines: string[],
+        options?: { size?: number; padding?: number }
+      ) => {
+        if (lines.length === 0) return;
+        const size = options?.size ?? 9;
+        const padding = options?.padding ?? 8;
+        const lineHeight = size + 3;
+        const contentLines = buildLines(lines, contentWidth - padding * 2, size);
+        const textHeight = contentLines.length * lineHeight;
+        const boxHeight = padding * 2 + textHeight + size + 6;
+        ensureSpace(boxHeight + 8);
+        const boxTop = cursorY;
+        const boxBottom = cursorY - boxHeight;
+
+        page.drawRectangle({
+          x: margin,
+          y: boxBottom,
+          width: contentWidth,
+          height: boxHeight,
+          borderColor: colors.line,
+          borderWidth: 0.6,
+          color: colors.softFill,
+        });
+
+        page.drawText(title, {
+          x: margin + padding,
+          y: boxTop - padding - size,
+          size,
+          font: bold,
+          color: colors.primary,
+        });
+
+        let textY = boxTop - padding - size - 6 - size;
+        contentLines.forEach((line) => {
+          if (!line) {
+            textY -= lineHeight;
+            return;
+          }
+          page.drawText(line, {
+            x: margin + padding,
+            y: textY,
+            size,
+            font,
+            color: colors.text,
+          });
+          textY -= lineHeight;
+        });
+
+        cursorY = boxBottom - 12;
+      };
+
       const tableColumns = [
-        { key: 'image', label: 'Imagen', width: 52 },
-        { key: 'producto', label: 'Producto', width: 220 },
-        { key: 'sku', label: 'SKU', width: 70 },
-        { key: 'cantidad', label: 'Cant.', width: 45 },
-        { key: 'unitario', label: 'P. unitario', width: 70 },
-        { key: 'subtotal', label: 'Subtotal', width: 74 },
+        { key: 'item', label: 'ITEM', width: 28, align: 'center' as const },
+        { key: 'image', label: 'IMAGEN', width: 52, align: 'center' as const },
+        { key: 'descripcion', label: 'DESCRIPCION', width: 220, align: 'left' as const },
+        { key: 'cantidad', label: 'CANT.', width: 50, align: 'center' as const },
+        { key: 'unidad', label: 'UNID.', width: 50, align: 'center' as const },
+        { key: 'unitario', label: 'P. UNIT.', width: 70, align: 'right' as const },
+        { key: 'total', label: 'TOTAL', width: 69, align: 'right' as const },
       ];
 
       const tableXMap: Record<string, number> = {};
@@ -404,8 +527,8 @@ const QuoteDetailPage = () => {
       });
 
       const drawTableHeader = () => {
-        const headerHeightPx = 20;
-        ensureSpace(headerHeightPx + 4);
+        const headerHeightPx = 22;
+        ensureSpace(headerHeightPx + 6);
         const headerTop = cursorY;
         const headerBottom = cursorY - headerHeightPx;
         page.drawRectangle({
@@ -414,20 +537,30 @@ const QuoteDetailPage = () => {
           width: contentWidth,
           height: headerHeightPx,
           color: colors.headerFill,
+          borderColor: colors.line,
+          borderWidth: 0.6,
         });
         let x = margin;
-        const textY = headerBottom + 6;
-        tableColumns.forEach((column) => {
+        const textY = headerTop - 15;
+        tableColumns.forEach((column, index) => {
           page.drawText(column.label, {
             x: x + 4,
             y: textY,
-            size: 9,
+            size: 8.5,
             font: bold,
             color: colors.muted,
           });
+          if (index < tableColumns.length - 1) {
+            page.drawLine({
+              start: { x: x + column.width, y: headerBottom },
+              end: { x: x + column.width, y: headerTop },
+              thickness: 0.6,
+              color: colors.line,
+            });
+          }
           x += column.width;
         });
-        cursorY = headerBottom - 6;
+        cursorY = headerBottom;
       };
 
       const drawAlignedText = (
@@ -448,36 +581,67 @@ const QuoteDetailPage = () => {
         page.drawText(text, { x: drawX, y, size, font, color: colors.text });
       };
 
-      const drawItemRow = async (item: (typeof detalleActual.items)[number]) => {
+      const drawItemRow = async (item: (typeof detalleActual.items)[number], index: number) => {
         const rowPadding = 6;
-        const productText = item.observacion
-          ? `${item.descripcionSnapshot} | Obs: ${item.observacion}`
-          : item.descripcionSnapshot;
-        const productLines = wrapText(productText, tableColumns[1].width - 8, font, 10);
-        const lineHeight = 12;
-        const textHeight = productLines.length * lineHeight;
-        const imageBox = 40;
+        const imageBox = 44;
+        const descWidth = tableColumns[2].width - 8;
+        const descSize = 9;
+        const descLineHeight = 11;
+        const skuText = item.skuSnapshot ? `SKU: ${item.skuSnapshot}` : '';
+        const obsText = item.observacion ? `Obs: ${item.observacion}` : '';
+        const productText = [item.descripcionSnapshot, skuText, obsText].filter(Boolean).join('\n');
+        const productLines = wrapText(productText || '-', descWidth, font, descSize);
+        const textHeight = productLines.length * descLineHeight;
         const rowHeight = Math.max(textHeight, imageBox) + rowPadding * 2;
 
-        if (ensureSpace(rowHeight + 4)) {
+        if (ensureSpace(rowHeight + 6)) {
           drawTableHeader();
         }
 
         const rowTop = cursorY;
         const rowBottom = cursorY - rowHeight;
 
+        if (index % 2 === 0) {
+          page.drawRectangle({
+            x: margin,
+            y: rowBottom,
+            width: contentWidth,
+            height: rowHeight,
+            color: colors.rowFill,
+          });
+        }
+        page.drawRectangle({
+          x: margin,
+          y: rowBottom,
+          width: contentWidth,
+          height: rowHeight,
+          borderColor: colors.line,
+          borderWidth: 0.6,
+        });
+
+        let dividerX = margin;
+        tableColumns.slice(0, -1).forEach((col) => {
+          dividerX += col.width;
+          page.drawLine({
+            start: { x: dividerX, y: rowBottom },
+            end: { x: dividerX, y: rowTop },
+            thickness: 0.6,
+            color: colors.line,
+          });
+        });
+
         const imageUrl = productImages.get(item.productoId) ?? null;
         const image = imageUrl ? await embedImageFromUrl(imageUrl) : null;
-        const imageX = margin + (tableColumns[0].width - imageBox) / 2;
-        const imageY = rowTop - rowPadding - imageBox;
+        const imageX = tableXMap.image + (tableColumns[1].width - imageBox) / 2;
+        const imageY = rowBottom + (rowHeight - imageBox) / 2;
 
         if (image) {
           const dims = image.scale(1);
           const scale = Math.min(imageBox / dims.width, imageBox / dims.height, 1);
           const drawWidth = dims.width * scale;
           const drawHeight = dims.height * scale;
-          const drawX = margin + (tableColumns[0].width - drawWidth) / 2;
-          const drawY = rowTop - rowPadding - drawHeight;
+          const drawX = tableXMap.image + (tableColumns[1].width - drawWidth) / 2;
+          const drawY = rowBottom + (rowHeight - drawHeight) / 2;
           page.drawImage(image, { x: drawX, y: drawY, width: drawWidth, height: drawHeight });
         } else {
           page.drawRectangle({
@@ -486,65 +650,66 @@ const QuoteDetailPage = () => {
             width: imageBox,
             height: imageBox,
             borderColor: colors.line,
-            borderWidth: 0.5,
+            borderWidth: 0.6,
           });
           const placeholder = 'Sin imagen';
           const placeholderSize = 7;
           const placeholderWidth = font.widthOfTextAtSize(placeholder, placeholderSize);
           page.drawText(placeholder, {
             x: imageX + (imageBox - placeholderWidth) / 2,
-            y: imageY + imageBox / 2 - 4,
+            y: imageY + imageBox / 2 - 3,
             size: placeholderSize,
             font,
             color: colors.muted,
           });
         }
 
-        let textY = rowTop - rowPadding - 10;
+        let textY = rowTop - rowPadding - descSize;
         productLines.forEach((line) => {
           page.drawText(line, {
-            x: tableXMap.producto + 4,
+            x: tableXMap.descripcion + 4,
             y: textY,
-            size: 10,
+            size: descSize,
             font,
             color: colors.text,
           });
-          textY -= lineHeight;
+          textY -= descLineHeight;
         });
 
-        const sku = item.skuSnapshot || '-';
-        drawAlignedText(sku, tableXMap.sku, tableColumns[2].width, rowTop - rowPadding - 10, 9, 'left');
+        const centerY = rowBottom + (rowHeight - descSize) / 2;
+        drawAlignedText(String(index + 1), tableXMap.item, tableColumns[0].width, centerY, 9, 'center');
         drawAlignedText(
           String(item.cantidad),
           tableXMap.cantidad,
           tableColumns[3].width,
-          rowTop - rowPadding - 10,
+          centerY,
+          9,
+          'center'
+        );
+        drawAlignedText(
+          safeText(item.unidadSnapshot ?? '-'),
+          tableXMap.unidad,
+          tableColumns[4].width,
+          centerY,
           9,
           'center'
         );
         drawAlignedText(
           formatCurrencyCLP(item.precioUnitarioNetoSnapshot),
           tableXMap.unitario,
-          tableColumns[4].width,
-          rowTop - rowPadding - 10,
+          tableColumns[5].width,
+          centerY,
           9,
           'right'
         );
         drawAlignedText(
           formatCurrencyCLP(item.subtotalNetoSnapshot),
-          tableXMap.subtotal,
-          tableColumns[5].width,
-          rowTop - rowPadding - 10,
+          tableXMap.total,
+          tableColumns[6].width,
+          centerY,
           9,
           'right'
         );
-
-        page.drawLine({
-          start: { x: margin, y: rowBottom },
-          end: { x: page.getSize().width - margin, y: rowBottom },
-          thickness: 0.5,
-          color: colors.line,
-        });
 
         cursorY = rowBottom - 6;
       };
@@ -552,76 +717,120 @@ const QuoteDetailPage = () => {
       drawHeader();
       drawFooter();
 
-      drawSectionTitle('Cliente y cotizacion');
-      drawKeyValueColumns(
-        [
-          { label: 'Contacto', value: detalleActual.nombreContacto },
-          { label: 'Empresa', value: detalleActual.empresa ?? '' },
-          { label: 'RUT', value: detalleActual.rut ?? '' },
-          { label: 'Email', value: detalleActual.email ?? '' },
-          { label: 'Telefono', value: detalleActual.telefono ?? '' },
-        ],
-        [
-          { label: 'Folio', value: detalleActual.codigo || detalleActual.id },
-          { label: 'Fecha', value: formatDateCL(detalleActual.createdAt) },
-          { label: 'Estado', value: detalleActual.estado },
-          {
-            label: 'Valida',
-            value: Number.isFinite(PDF_VALIDITY_DAYS) && PDF_VALIDITY_DAYS > 0 ? `${PDF_VALIDITY_DAYS} dias` : '',
-          },
-          { label: 'Total', value: formatCurrencyCLP(detalleActual.total) },
-        ]
-      );
+      const observacionesDireccion =
+        observaciones.direccion ?? observaciones.direccionDespacho ?? observaciones.ubicacion ?? '';
+      const observacionesComuna =
+        observaciones.comunaRegion ?? observaciones.comuna ?? observaciones.region ?? '';
+      const validezLabel =
+        Number.isFinite(PDF_VALIDITY_DAYS) && PDF_VALIDITY_DAYS > 0 ? `${PDF_VALIDITY_DAYS} dias` : '-';
+      const clienteNombre = detalleActual.empresa?.trim() || detalleActual.nombreContacto;
 
-      if (notas.length > 0) {
-        drawSectionTitle('Observaciones');
-        notas.forEach((nota) => {
-          drawParagraph(`${nota.label}: ${nota.value}`);
-        });
-      }
+      drawSectionTitle('Datos del cliente');
+      drawInfoTable([
+        {
+          left: { label: 'Cliente', value: clienteNombre },
+          right: { label: 'RUT', value: detalleActual.rut ?? '' },
+        },
+        {
+          left: { label: 'Telefono', value: detalleActual.telefono ?? '' },
+          right: { label: 'Email', value: detalleActual.email ?? '' },
+        },
+        {
+          left: { label: 'Direccion', value: observacionesDireccion || '-' },
+          right: { label: 'Ciudad / Comuna', value: observacionesComuna || '-' },
+        },
+        {
+          left: { label: 'Fecha emision', value: formatDateCL(detalleActual.createdAt) },
+          right: { label: 'Validez', value: validezLabel },
+        },
+      ]);
 
       drawSectionTitle('Detalle de productos');
       if (!detalleActual.items?.length) {
         drawParagraph('No hay items registrados en la cotizacion.');
       } else {
         drawTableHeader();
-
+        let index = 0;
         for (const item of detalleActual.items ?? []) {
           // eslint-disable-next-line no-await-in-loop
-          await drawItemRow(item);
+          await drawItemRow(item, index);
+          index += 1;
         }
       }
 
-      ensureSpace(90);
-      drawSectionTitle('Totales');
       const totalsWidth = 220;
-      const totalsX = page.getSize().width - margin - totalsWidth;
       const totalLines = [
         { label: 'Subtotal neto', value: formatCurrencyCLP(detalleActual.subtotalNeto) },
         { label: 'IVA', value: formatCurrencyCLP(detalleActual.iva) },
-        { label: 'Total', value: formatCurrencyCLP(detalleActual.total) },
+        { label: 'TOTAL', value: formatCurrencyCLP(detalleActual.total) },
       ];
-      totalLines.forEach((line, index) => {
-        const labelSize = 9;
-        const valueSize = index === totalLines.length - 1 ? 11 : 10;
-        const labelWidth = totalsWidth * 0.55;
+      const totalsHeight = totalLines.length * 18 + 28;
+      ensureSpace(totalsHeight + 8);
+      const totalsX = page.getSize().width - margin - totalsWidth;
+      const totalsTop = cursorY;
+      const totalsBottom = totalsTop - totalsHeight;
+
+      page.drawRectangle({
+        x: totalsX,
+        y: totalsBottom,
+        width: totalsWidth,
+        height: totalsHeight,
+        borderColor: colors.line,
+        borderWidth: 0.8,
+        color: colors.headerFill,
+      });
+      page.drawText('Totales', {
+        x: totalsX + 10,
+        y: totalsTop - 16,
+        size: 10,
+        font: bold,
+        color: colors.primary,
+      });
+      let totalsY = totalsTop - 30;
+      totalLines.forEach((line) => {
         page.drawText(line.label, {
-          x: totalsX,
-          y: cursorY - valueSize,
-          size: labelSize,
+          x: totalsX + 10,
+          y: totalsY,
+          size: 9,
           font,
           color: colors.muted,
         });
-        const valueWidth = bold.widthOfTextAtSize(line.value, valueSize);
+        const valueWidth = bold.widthOfTextAtSize(line.value, 10);
         page.drawText(line.value, {
-          x: totalsX + totalsWidth - valueWidth,
-          y: cursorY - valueSize,
-          size: valueSize,
-          font: index === totalLines.length - 1 ? bold : font,
+          x: totalsX + totalsWidth - valueWidth - 10,
+          y: totalsY,
+          size: line.label === 'TOTAL' ? 11 : 10,
+          font: line.label === 'TOTAL' ? bold : font,
           color: colors.text,
         });
-        cursorY -= 16;
+        totalsY -= 16;
       });
+      cursorY = totalsBottom - 12;
+
+      const quoteNotesEnv = (import.meta.env.VITE_PDF_QUOTE_CONDITIONS as string | undefined) ?? '';
+      const observationsLines = notas.map((nota) => `${nota.label}: ${nota.value}`);
+      const conditionsLines = quoteNotesEnv
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const notesBlockLines =
+        observationsLines.length && conditionsLines.length
+          ? [...observationsLines, '', ...conditionsLines]
+          : observationsLines.length
+          ? observationsLines
+          : conditionsLines;
+
+      drawBoxedTextBlock('Observaciones y condiciones', notesBlockLines, { size: 9 });
+
+      const companyLines = [
+        COMPANY_NAME,
+        COMPANY_RUT ? `RUT ${COMPANY_RUT}` : '',
+        COMPANY_ADDRESS,
+        COMPANY_PHONE,
+        COMPANY_EMAIL,
+        COMPANY_WEBSITE,
+      ].filter(Boolean);
+      drawBoxedTextBlock('Datos de la empresa', companyLines, { size: 9 });
 
       const bytes = await doc.save();
       const buffer = new ArrayBuffer(bytes.byteLength);
