@@ -8,6 +8,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import "./index.css";
 import App from "./App.tsx";
 import { msalConfig } from "./auth/msal";
+import { uiLogger } from "./utils/logger";
 
 const msalInstance = new PublicClientApplication(msalConfig);
 const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
@@ -38,7 +39,9 @@ async function bootstrap() {
       </StrictMode>
     );
   } catch (err) {
-    console.error("MSAL bootstrap error:", err);
+    uiLogger.error("msal_bootstrap_error", {
+      message: err instanceof Error ? err.message : String(err),
+    });
 
     // fallback: renderiza igual (por ejemplo, para que Google login funcione)
     createRoot(document.getElementById("root")!).render(

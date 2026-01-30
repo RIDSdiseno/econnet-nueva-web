@@ -1,4 +1,5 @@
 import type { Product } from '../data/products';
+import { uiLogger } from '../utils/logger';
 
 type RespuestaApi<T> = {
   ok: boolean;
@@ -56,6 +57,13 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
   const payload = (await response.json().catch(() => ({}))) as RespuestaApi<T>;
 
   if (!response.ok || !payload.ok) {
+    const requestId = response.headers.get('x-request-id') || undefined;
+    uiLogger.error('api_error', {
+      endpoint: response.url,
+      status: response.status,
+      requestId,
+      message: payload.message || 'Error de API',
+    });
     const error = new Error(payload.message || 'Error de API');
     (error as { details?: unknown }).details = payload.details;
     throw error;
@@ -72,6 +80,13 @@ const parseResponseWithStatus = async <T>(response: Response): Promise<T> => {
   const payload = (await response.json().catch(() => ({}))) as RespuestaApi<T>;
 
   if (!response.ok || !payload.ok) {
+    const requestId = response.headers.get('x-request-id') || undefined;
+    uiLogger.error('api_error', {
+      endpoint: response.url,
+      status: response.status,
+      requestId,
+      message: payload.message || 'Error de API',
+    });
     const error = new Error(payload.message || 'Error de API');
     (error as { details?: unknown; status?: number }).details = payload.details;
     (error as { status?: number }).status = response.status;
@@ -359,6 +374,17 @@ export const obtenerUsuarioActual = async () => {
   return parseResponse<{ usuario: UsuarioEcommerce; direccionPrincipal: DireccionContacto | null }>(response);
 };
 
+export const verificarSesion = async () => {
+  const response = await fetch(`${API_BASE_URL}/ecommerce/usuarios/me`, {
+    headers: {
+      Accept: 'application/json',
+      ...authHeaders(),
+    },
+  });
+
+  return { ok: response.ok, status: response.status };
+};
+
 // ==============================
 // Clientes
 // ==============================
@@ -586,6 +612,13 @@ export const iniciarPagoTransbankFormulario = (pedidoId: string) => {
   inputPedido.value = pedidoId;
 
   form.appendChild(inputPedido);
+
+  const inputFront = document.createElement('input');
+  inputFront.type = 'hidden';
+  inputFront.name = 'frontUrl';
+  inputFront.value = window.location.origin;
+  form.appendChild(inputFront);
+
   document.body.appendChild(form);
   form.submit();
 };

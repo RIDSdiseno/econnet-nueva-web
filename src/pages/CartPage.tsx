@@ -11,6 +11,7 @@ import {
   iniciarPagoTransbankFormulario,
   obtenerCliente,
 } from '../services/api';
+import { uiLogger } from '../utils/logger';
 
 type DespachoForm = {
   nombre: string;
@@ -422,6 +423,12 @@ const CartPage = () => {
   const manejarStripeResultado = (resultado: StripeResultado, status: string, paymentIntentId?: string) => {
     const intentId = paymentIntentId ?? null;
     setStripePaymentIntentId(intentId);
+    uiLogger.info('stripe_result', {
+      resultado,
+      status,
+      pedidoId: stripePedidoId ?? null,
+      paymentIntentId: intentId,
+    });
 
     if (resultado === 'success') {
       setStripeMensaje('Pago confirmado.');
@@ -438,6 +445,7 @@ const CartPage = () => {
   };
 
   const manejarStripeError = (mensaje: string) => {
+    uiLogger.error('stripe_checkout_error', { message: mensaje, pedidoId: stripePedidoId ?? null });
     setStripeError(mensaje);
   };
 
@@ -459,6 +467,12 @@ const CartPage = () => {
     setStripeMensaje(null);
     setStripeExito(false);
     setStripePaymentIntentId(null);
+    uiLogger.info('checkout_start', {
+      metodo: 'stripe',
+      itemsCount: items.length,
+      total: totalWithIva,
+      userId: user?.id ?? null,
+    });
 
     if (!stripeKeyDisponible || !stripePromise) {
       setStripeModalVisible(true);
@@ -484,6 +498,11 @@ const CartPage = () => {
         total = pedido.total;
         setStripePedidoId(pedidoId);
         setStripeTotal(total);
+        uiLogger.info('checkout_order_created', {
+          metodo: 'stripe',
+          pedidoId,
+          total,
+        });
       }
 
       if (!stripeClientSecret && pedidoId && total) {
@@ -496,9 +515,15 @@ const CartPage = () => {
         });
         setStripeClientSecret(intent.clientSecret);
         setStripePaymentIntentId(intent.paymentIntentId ?? null);
+        uiLogger.info('stripe_intent_created', {
+          pedidoId,
+          paymentIntentId: intent.paymentIntentId ?? null,
+          total,
+        });
       }
     } catch (error) {
       const mensaje = error instanceof Error ? error.message : 'No se pudo iniciar el pago con Stripe.';
+      uiLogger.error('stripe_intent_error', { message: mensaje });
       setStripeError(mensaje);
       setMetodoPago(null);
     } finally {
@@ -515,12 +540,28 @@ const CartPage = () => {
     setStripeError(null);
     setStripeMensaje(null);
     setMetodoPago('transbank');
+    uiLogger.info('checkout_start', {
+      metodo: 'transbank',
+      itemsCount: items.length,
+      total: totalWithIva,
+      userId: user?.id ?? null,
+    });
 
     try {
       const pedido = await crearPedido(construirPedidoPayload());
+      uiLogger.info('checkout_order_created', {
+        metodo: 'transbank',
+        pedidoId: pedido.pedidoId,
+        total: pedido.total,
+      });
+      uiLogger.info('payment_redirect', {
+        metodo: 'transbank',
+        pedidoId: pedido.pedidoId,
+      });
       iniciarPagoTransbankFormulario(pedido.pedidoId);
     } catch (error) {
       const mensaje = error instanceof Error ? error.message : 'No se pudo iniciar el pago.';
+      uiLogger.error('payment_start_error', { metodo: 'transbank', message: mensaje });
       setPagoError(mensaje);
       setMetodoPago(null);
     }
@@ -535,13 +576,31 @@ const CartPage = () => {
     setStripeError(null);
     setStripeMensaje(null);
     setMetodoPago('mercadopago');
+    uiLogger.info('checkout_start', {
+      metodo: 'mercadopago',
+      itemsCount: items.length,
+      total: totalWithIva,
+      userId: user?.id ?? null,
+    });
 
     try {
       const pedido = await crearPedido(construirPedidoPayload());
       const pago = await crearPagoMercadoPago({ pedidoId: pedido.pedidoId });
+      uiLogger.info('checkout_order_created', {
+        metodo: 'mercadopago',
+        pedidoId: pedido.pedidoId,
+        total: pedido.total,
+      });
+      uiLogger.info('payment_redirect', {
+        metodo: 'mercadopago',
+        pedidoId: pedido.pedidoId,
+        pagoId: pago.pagoId,
+        preferenceId: pago.preferenceId,
+      });
       window.location.href = pago.redirectUrl;
     } catch (error) {
       const mensaje = error instanceof Error ? error.message : 'No se pudo iniciar el pago.';
+      uiLogger.error('payment_start_error', { metodo: 'mercadopago', message: mensaje });
       setPagoError(mensaje);
       setMetodoPago(null);
     }

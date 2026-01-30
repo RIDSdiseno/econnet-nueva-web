@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { obtenerEstadoMercadoPago, type MercadoPagoEstado } from '../services/api';
+import { uiLogger } from '../utils/logger';
 
 type EstadoPago = 'cargando' | 'aprobado' | 'pendiente' | 'rechazado' | 'error';
 
@@ -87,6 +88,14 @@ const MercadoPagoReturnPage = () => {
       if (estadoFallback === 'aprobado') {
         clearCart();
       }
+      uiLogger.info('payment_return', {
+        metodo: 'mercadopago',
+        estado: estadoFallback,
+        paymentId: datos.paymentId || null,
+        preferenceId: datos.preferenceId || null,
+        externalReference: datos.externalReference || null,
+        status: datos.status || null,
+      });
       return;
     }
 
@@ -117,6 +126,15 @@ const MercadoPagoReturnPage = () => {
         if (nuevoEstado === 'aprobado') {
           clearCart();
         }
+        uiLogger.info('payment_return', {
+          metodo: 'mercadopago',
+          estado: nuevoEstado,
+          pagoId: data.pagoId,
+          pedidoId: data.pedidoId,
+          preferenceId: data.preferenceId ?? null,
+          providerPaymentId: data.providerPaymentId ?? null,
+          mpStatus: data.mpStatus ?? null,
+        });
       })
       .catch((error) => {
         if (!activo) return;
@@ -132,6 +150,14 @@ const MercadoPagoReturnPage = () => {
             ? 'El pago fue rechazado. Puedes intentarlo nuevamente.'
             : 'No pudimos validar el pago.',
         );
+        uiLogger.warn('payment_return_error', {
+          metodo: 'mercadopago',
+          estado: estadoFallback,
+          paymentId: datos.paymentId || null,
+          preferenceId: datos.preferenceId || null,
+          externalReference: datos.externalReference || null,
+          message: texto,
+        });
       });
 
     return () => {

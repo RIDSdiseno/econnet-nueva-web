@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMsal } from '@azure/msal-react';
 import { useAuth } from '../context/AuthContext';
 import { loginMicrosoft, setAuthToken, type DireccionContacto } from '../services/api';
+import { uiLogger } from '../utils/logger';
 
 const MicrosoftCallbackPage = () => {
   const navigate = useNavigate();
@@ -57,7 +58,9 @@ const MicrosoftCallbackPage = () => {
           }, 2000);
         }
       } catch (err) {
-        console.error('Error procesando callback Microsoft:', err);
+        uiLogger.error('microsoft_callback_error', {
+          message: err instanceof Error ? err.message : String(err),
+        });
         setError(err instanceof Error ? err.message : 'Error al procesar autenticación');
         setTimeout(() => navigate('/login', { replace: true }), 3000);
       }

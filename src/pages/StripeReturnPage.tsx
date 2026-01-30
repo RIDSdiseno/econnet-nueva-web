@@ -3,6 +3,7 @@ import { useLocation, useParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { descargarReciboPdf, obtenerEstadoStripe, type StripeEstado } from '../services/api';
+import { uiLogger } from '../utils/logger';
 
 type EstadoPago = 'cargando' | 'aprobado' | 'pendiente' | 'rechazado' | 'error';
 
@@ -80,6 +81,13 @@ const StripeReturnPage = () => {
       if (estadoFallback === 'aprobado') {
         clearCart();
       }
+      uiLogger.info('payment_return', {
+        metodo: 'stripe',
+        estado: estadoFallback,
+        pedidoId: params.pedidoId ?? null,
+        cotizacionId: params.cotizacionId ?? null,
+        paymentIntentId: params.paymentIntentId ?? null,
+      });
       return;
     }
 
@@ -96,6 +104,13 @@ const StripeReturnPage = () => {
       setEstado('aprobado');
       setMensaje('Pago confirmado. Dirigirse a pagos para ver el detalle.');
       clearCart();
+      uiLogger.info('payment_return', {
+        metodo: 'stripe',
+        estado: 'aprobado',
+        pedidoId: params.pedidoId ?? null,
+        cotizacionId: params.cotizacionId ?? null,
+        paymentIntentId: params.paymentIntentId ?? null,
+      });
     } else {
       setEstado('cargando');
       setMensaje('Confirmando tu pago con Stripe...');
@@ -116,15 +131,37 @@ const StripeReturnPage = () => {
         setMensaje(resolverMensajeEstado(nuevoEstado));
         if (nuevoEstado === 'aprobado') {
           clearCart();
+          uiLogger.info('payment_return', {
+            metodo: 'stripe',
+            estado: nuevoEstado,
+            pagoId: data.pagoId,
+            pedidoId: data.pedidoId ?? null,
+            paymentIntentId: data.providerPaymentId ?? null,
+            stripeStatus: data.stripeStatus ?? null,
+          });
           return;
         }
         if (nuevoEstado === 'rechazado') {
+          uiLogger.info('payment_return', {
+            metodo: 'stripe',
+            estado: nuevoEstado,
+            pagoId: data.pagoId,
+            pedidoId: data.pedidoId ?? null,
+            paymentIntentId: data.providerPaymentId ?? null,
+            stripeStatus: data.stripeStatus ?? null,
+          });
           return;
         }
       } catch (error) {
         if (!activo) return;
         const texto = error instanceof Error ? error.message : 'No se pudo confirmar el pago.';
         setDetalle(texto);
+        uiLogger.warn('payment_return_error', {
+          metodo: 'stripe',
+          pedidoId: params.pedidoId ?? null,
+          paymentIntentId: params.paymentIntentId ?? null,
+          message: texto,
+        });
       }
 
       intentos += 1;
@@ -135,6 +172,13 @@ const StripeReturnPage = () => {
         if (estadoFallback === 'aprobado') {
           clearCart();
         }
+        uiLogger.info('payment_return', {
+          metodo: 'stripe',
+          estado: estadoFallback,
+          pedidoId: params.pedidoId ?? null,
+          cotizacionId: params.cotizacionId ?? null,
+          paymentIntentId: params.paymentIntentId ?? null,
+        });
         return;
       }
 

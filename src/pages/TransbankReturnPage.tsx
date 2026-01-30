@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { useCart } from '../context/CartContext';
-import { obtenerPagoRecibo, type PagoRecibo } from '../services/api';
+import { obtenerPagoRecibo, type PagoRecibo, verificarSesion } from '../services/api';
+import { uiLogger } from '../utils/logger';
 
 type EstadoPago = 'cargando' | 'confirmado' | 'rechazado' | 'error';
 
@@ -36,6 +37,34 @@ const TransbankReturnPage = () => {
   }, [location.search]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const hasToken = Boolean(window.localStorage.getItem('covasa_auth_token'));
+    const hasUser = Boolean(window.localStorage.getItem('covasa_user'));
+    uiLogger.debug('payment_return_auth_state', {
+      metodo: 'transbank',
+      hasToken,
+      hasUser,
+      origin: window.location.origin,
+      path: window.location.pathname,
+    });
+
+    verificarSesion()
+      .then((status) => {
+        uiLogger.debug('payment_return_me_status', {
+          metodo: 'transbank',
+          ok: status.ok,
+          status: status.status,
+        });
+      })
+      .catch((error) => {
+        const texto = error instanceof Error ? error.message : 'No se pudo validar la sesion.';
+        uiLogger.warn('payment_return_me_error', { metodo: 'transbank', message: texto });
+      });
+  }, []);
+
+  useEffect(() => {
     const estadoNormalizado =
       parametros.status === 'success'
         ? 'CONFIRMADO'
@@ -51,24 +80,54 @@ const TransbankReturnPage = () => {
       setEstado('confirmado');
       setMensaje('Pago confirmado. Gracias por tu compra.');
       clearCart();
+      uiLogger.info('payment_return', {
+        metodo: 'transbank',
+        estado: 'confirmado',
+        pagoId: parametros.pagoId || null,
+        pedidoId: parametros.pedidoId || null,
+        status: parametros.status || null,
+        tbkStatus: parametros.tbkStatus || null,
+      });
       return;
     }
 
     if (estadoNormalizado === 'RECHAZADO') {
       setEstado('rechazado');
       setMensaje('El pago fue rechazado o no pudo confirmarse.');
+      uiLogger.info('payment_return', {
+        metodo: 'transbank',
+        estado: 'rechazado',
+        pagoId: parametros.pagoId || null,
+        pedidoId: parametros.pedidoId || null,
+        status: parametros.status || null,
+        tbkStatus: parametros.tbkStatus || null,
+      });
       return;
     }
 
     if (estadoNormalizado === 'ERROR') {
       setEstado('error');
       setMensaje('No pudimos confirmar el pago. Intenta nuevamente.');
+      uiLogger.warn('payment_return_error', {
+        metodo: 'transbank',
+        pagoId: parametros.pagoId || null,
+        pedidoId: parametros.pedidoId || null,
+        status: parametros.status || null,
+        tbkStatus: parametros.tbkStatus || null,
+      });
       return;
     }
 
     setEstado('cargando');
     setMensaje('Confirmando tu pago con Transbank...');
-  }, [parametros.estado, clearCart]);
+  }, [
+    parametros.estado,
+    parametros.pagoId,
+    parametros.pedidoId,
+    parametros.status,
+    parametros.tbkStatus,
+    clearCart,
+  ]);
 
   useEffect(() => {
     let activo = true;
@@ -86,6 +145,11 @@ const TransbankReturnPage = () => {
       .catch((error) => {
         if (!activo) return;
         const texto = error instanceof Error ? error.message : 'No se pudo cargar el recibo.';
+        uiLogger.warn('payment_receipt_error', {
+          metodo: 'transbank',
+          pagoId: parametros.pagoId,
+          message: texto,
+        });
         setDetalle(texto);
       });
 
