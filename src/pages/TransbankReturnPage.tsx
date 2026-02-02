@@ -29,6 +29,7 @@ const COMPANY_EMAIL =
   (import.meta.env.VITE_PDF_COMPANY_EMAIL as string | undefined) ?? covasaContact.email;
 const COMPANY_WEBSITE =
   (import.meta.env.VITE_PDF_COMPANY_WEBSITE as string | undefined) ?? 'www.covasachile.cl';
+const RECEIPT_NOTES = (import.meta.env.VITE_PDF_RECEIPT_NOTES as string | undefined) ?? '';
 
 const TransbankReturnPage = () => {
   const location = useLocation();
@@ -196,11 +197,11 @@ const TransbankReturnPage = () => {
   try {
     const doc = await PDFDocument.create();
     const pageSize: [number, number] = [595.28, 841.89];
-    const margin = 32;
-    const headerHeight = 72;
-    const footerHeight = 60;
+    const margin = 28;
+    const headerHeight = 100;
+    const footerHeight = 80;
     const contentWidth = pageSize[0] - margin * 2;
-    const contentBottom = margin + footerHeight + 8;
+    const contentBottom = margin + footerHeight + 10;
     const contentTop = pageSize[1] - margin - headerHeight;
 
     const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -208,29 +209,41 @@ const TransbankReturnPage = () => {
     const colors = {
       primary: rgb(0.69, 0.06, 0.06),
       text: rgb(0.12, 0.12, 0.12),
-      muted: rgb(0.45, 0.45, 0.45),
-      line: rgb(0.9, 0.9, 0.9),
+      muted: rgb(0.42, 0.42, 0.42),
+      line: rgb(0.88, 0.88, 0.88),
       headerFill: rgb(0.96, 0.96, 0.96),
+      softFill: rgb(0.99, 0.99, 0.99),
+      rowFill: rgb(0.985, 0.985, 0.985),
     };
 
+    const embeddedImageCache = new Map<string, any>();
     const embedImageFromUrl = async (url: string) => {
-      const payload = await fetchImageBytes(url);
-      if (!payload) return null;
+      if (embeddedImageCache.has(url)) {
+        return embeddedImageCache.get(url);
+      }
+      const payload = await fetchImageBytes(url, { maxBytes: 1_500_000, timeoutMs: 7000 });
+      if (!payload) {
+        embeddedImageCache.set(url, null);
+        return null;
+      }
+      let image: any = null;
       try {
         if (payload.contentType?.includes('png')) {
-          return await doc.embedPng(payload.bytes);
+          image = await doc.embedPng(payload.bytes);
+        } else if (payload.contentType?.includes('jpeg') || payload.contentType?.includes('jpg')) {
+          image = await doc.embedJpg(payload.bytes);
+        } else {
+          image = await doc.embedPng(payload.bytes);
         }
-        if (payload.contentType?.includes('jpeg') || payload.contentType?.includes('jpg')) {
-          return await doc.embedJpg(payload.bytes);
-        }
-        return await doc.embedPng(payload.bytes);
       } catch {
         try {
-          return await doc.embedJpg(payload.bytes);
+          image = await doc.embedJpg(payload.bytes);
         } catch {
-          return null;
+          image = null;
         }
       }
+      embeddedImageCache.set(url, image);
+      return image;
     };
 
     const logoImage = await embedImageFromUrl(LOGO_URL);
@@ -242,55 +255,46 @@ const TransbankReturnPage = () => {
     const drawHeader = () => {
       const { width, height } = page.getSize();
       const top = height - margin;
+      const headerBottom = top - headerHeight;
 
       if (logoImage) {
         const dims = logoImage.scale(1);
-        const maxHeight = 40;
-        const scale = Math.min(maxHeight / dims.height, 1);
+        const maxWidth = 150;
+        const maxHeight = 60;
+        const scale = Math.min(maxWidth / dims.width, maxHeight / dims.height, 1);
         const logoWidth = dims.width * scale;
         const logoHeight = dims.height * scale;
         page.drawImage(logoImage, {
           x: margin,
-          y: top - logoHeight,
+          y: top - 12 - logoHeight,
           width: logoWidth,
           height: logoHeight,
         });
       } else {
         page.drawText(COMPANY_NAME, {
           x: margin,
-          y: top - 18,
-          size: 16,
+          y: top - 28,
+          size: 18,
           font: bold,
           color: colors.primary,
         });
       }
 
-      const title = 'Recibo de Pago';
-      const titleSize = 18;
+      const title = 'RECIBO DE PAGO';
+      const titleSize = 20;
       const titleWidth = bold.widthOfTextAtSize(title, titleSize);
       page.drawText(title, {
         x: width - margin - titleWidth,
-        y: top - titleSize,
+        y: top - 24,
         size: titleSize,
         font: bold,
         color: colors.primary,
       });
 
-      const folio = `Folio: ${recibo.pagoId}`;
-      const folioSize = 10;
-      const folioWidth = font.widthOfTextAtSize(folio, folioSize);
-      page.drawText(folio, {
-        x: width - margin - folioWidth,
-        y: top - titleSize - 16,
-        size: folioSize,
-        font,
-        color: colors.muted,
-      });
-
       page.drawLine({
-        start: { x: margin, y: top - headerHeight + 8 },
-        end: { x: width - margin, y: top - headerHeight + 8 },
-        thickness: 0.5,
+        start: { x: margin, y: headerBottom + 6 },
+        end: { x: width - margin, y: headerBottom + 6 },
+        thickness: 0.6,
         color: colors.line,
       });
     };
@@ -351,142 +355,356 @@ const TransbankReturnPage = () => {
       return false;
     };
 
-    const drawSectionTitle = (title: string) => {
-      ensureSpace(26);
-      const size = 12;
+    const buildLines = (lines: string[], width: number, size: number) => {
+      const output: string[] = [];
+      lines.forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          output.push('');
+          return;
+        }
+        output.push(...wrapText(trimmed, width, font, size));
+      });
+      return output;
+    };
+
+    const drawInfoBox = (
+      title: string,
+      x: number,
+      topY: number,
+      width: number,
+      height: number,
+      lines: string[]
+    ) => {
+      const padding = 8;
+      const titleSize = 9;
+      const bodySize = 9;
+      const lineHeight = 12;
+      const bottomY = topY - height;
+
+      page.drawRectangle({
+        x,
+        y: bottomY,
+        width,
+        height,
+        borderColor: colors.line,
+        borderWidth: 0.6,
+        color: colors.softFill,
+      });
+
       page.drawText(title, {
+        x: x + padding,
+        y: topY - padding - titleSize,
+        size: titleSize,
+        font: bold,
+        color: colors.primary,
+      });
+
+      let textY = topY - padding - titleSize - 6 - bodySize;
+      lines.forEach((line) => {
+        if (!line) {
+          textY -= lineHeight;
+          return;
+        }
+        page.drawText(line, {
+          x: x + padding,
+          y: textY,
+          size: bodySize,
+          font,
+          color: colors.text,
+        });
+        textY -= lineHeight;
+      });
+    };
+
+    const drawInfoBoxes = () => {
+      const direccionLine = recibo.direccion
+        ? [recibo.direccion.direccion, recibo.direccion.comuna, recibo.direccion.region]
+            .filter(Boolean)
+            .join(', ')
+        : '';
+
+      const clienteLines = [
+        recibo.direccion?.nombreContacto ?? '',
+        direccionLine,
+        recibo.direccion?.telefono ?? '',
+        recibo.direccion?.email ?? '',
+      ].filter(Boolean);
+
+      const detalleLines = [
+        `Recibo No: ${recibo.pagoId}`,
+        `Fecha: ${formatDateCL(recibo.createdAt)}`,
+        `Pedido: ${recibo.pedido.codigo || recibo.pedido.id}`,
+        `Estado: ${recibo.estado}`,
+      ].filter(Boolean);
+
+      const pagoLines = [
+        `Metodo: ${recibo.metodo}`,
+        `Pago ID: ${recibo.pagoId}`,
+        recibo.transbank?.authorizationCode ? `Autorizacion: ${recibo.transbank.authorizationCode}` : '',
+        recibo.transbank?.paymentTypeCode ? `Tipo pago: ${recibo.transbank.paymentTypeCode}` : '',
+        recibo.transbank?.cardNumber ? `Tarjeta: ${recibo.transbank.cardNumber}` : '',
+      ].filter(Boolean);
+
+      const boxGap = 12;
+      const boxWidth = (contentWidth - boxGap * 2) / 3;
+      const padding = 8;
+      const bodySize = 9;
+      const lineHeight = 12;
+      const customerWrapped = buildLines(clienteLines, boxWidth - padding * 2, bodySize);
+      const detailWrapped = buildLines(detalleLines, boxWidth - padding * 2, bodySize);
+      const pagoWrapped = buildLines(pagoLines, boxWidth - padding * 2, bodySize);
+      const maxLines = Math.max(customerWrapped.length || 1, detailWrapped.length || 1, pagoWrapped.length || 1);
+      const boxHeight = padding * 2 + 9 + 6 + maxLines * lineHeight;
+
+      ensureSpace(boxHeight + 10);
+      const topY = cursorY;
+      drawInfoBox('Enviar a', margin, topY, boxWidth, boxHeight, customerWrapped);
+      drawInfoBox('Detalle', margin + boxWidth + boxGap, topY, boxWidth, boxHeight, detailWrapped);
+      drawInfoBox('Pago', margin + (boxWidth + boxGap) * 2, topY, boxWidth, boxHeight, pagoWrapped);
+
+      cursorY = topY - boxHeight - 12;
+    };
+
+    const drawSummaryHeader = (labelWidth: number) => {
+      const headerHeightPx = 20;
+      ensureSpace(headerHeightPx + 6);
+      const headerTop = cursorY;
+      const headerBottom = cursorY - headerHeightPx;
+
+      page.drawRectangle({
         x: margin,
-        y: cursorY - size,
+        y: headerBottom,
+        width: contentWidth,
+        height: headerHeightPx,
+        color: colors.headerFill,
+        borderColor: colors.line,
+        borderWidth: 0.6,
+      });
+      page.drawLine({
+        start: { x: margin + labelWidth, y: headerBottom },
+        end: { x: margin + labelWidth, y: headerTop },
+        thickness: 0.6,
+        color: colors.line,
+      });
+      page.drawText('Concepto', {
+        x: margin + 6,
+        y: headerTop - 14,
+        size: 9,
+        font: bold,
+        color: colors.muted,
+      });
+      page.drawText('Detalle', {
+        x: margin + labelWidth + 6,
+        y: headerTop - 14,
+        size: 9,
+        font: bold,
+        color: colors.muted,
+      });
+      cursorY = headerBottom;
+    };
+
+    const drawSummaryRow = (label: string, value: string, labelWidth: number, valueWidth: number, index: number) => {
+      const padding = 6;
+      const size = 9;
+      const lineHeight = 11;
+      const labelLines = wrapText(label || '-', labelWidth - padding * 2, font, size);
+      const valueLines = wrapText(value || '-', valueWidth - padding * 2, font, size);
+      const maxLines = Math.max(labelLines.length || 1, valueLines.length || 1);
+      const rowHeight = maxLines * lineHeight + padding * 2;
+
+      if (ensureSpace(rowHeight + 4)) {
+        drawSummaryHeader(labelWidth);
+      }
+
+      const rowTop = cursorY;
+      const rowBottom = cursorY - rowHeight;
+      if (index % 2 === 0) {
+        page.drawRectangle({
+          x: margin,
+          y: rowBottom,
+          width: contentWidth,
+          height: rowHeight,
+          color: colors.rowFill,
+        });
+      }
+      page.drawRectangle({
+        x: margin,
+        y: rowBottom,
+        width: contentWidth,
+        height: rowHeight,
+        borderColor: colors.line,
+        borderWidth: 0.6,
+      });
+      page.drawLine({
+        start: { x: margin + labelWidth, y: rowBottom },
+        end: { x: margin + labelWidth, y: rowTop },
+        thickness: 0.6,
+        color: colors.line,
+      });
+
+      let textY = rowTop - padding - size;
+      labelLines.forEach((line) => {
+        page.drawText(line, {
+          x: margin + padding,
+          y: textY,
+          size,
+          font,
+          color: colors.text,
+        });
+        textY -= lineHeight;
+      });
+      textY = rowTop - padding - size;
+      valueLines.forEach((line) => {
+        page.drawText(line, {
+          x: margin + labelWidth + padding,
+          y: textY,
+          size,
+          font,
+          color: colors.text,
+        });
+        textY -= lineHeight;
+      });
+
+      cursorY = rowBottom;
+    };
+
+    const drawTotalsBox = () => {
+      const totalsWidth = 220;
+      const totalLines = [{ label: 'Total pagado', value: formatCurrencyCLP(recibo.monto) }];
+      const totalsHeight = totalLines.length * 18 + 24;
+      ensureSpace(totalsHeight + 6);
+      const totalsX = page.getSize().width - margin - totalsWidth;
+      const totalsTop = cursorY;
+      const totalsBottom = totalsTop - totalsHeight;
+
+      page.drawRectangle({
+        x: totalsX,
+        y: totalsBottom,
+        width: totalsWidth,
+        height: totalsHeight,
+        borderColor: colors.line,
+        borderWidth: 0.6,
+        color: colors.headerFill,
+      });
+      page.drawText('Totales', {
+        x: totalsX + 10,
+        y: totalsTop - 16,
+        size: 10,
+        font: bold,
+        color: colors.primary,
+      });
+      let y = totalsTop - 30;
+      totalLines.forEach((line) => {
+        page.drawText(line.label, {
+          x: totalsX + 10,
+          y,
+          size: 9,
+          font,
+          color: colors.muted,
+        });
+        const valueWidth = bold.widthOfTextAtSize(line.value, 11);
+        page.drawText(line.value, {
+          x: totalsX + totalsWidth - valueWidth - 10,
+          y,
+          size: 11,
+          font: bold,
+          color: colors.text,
+        });
+        y -= 16;
+      });
+
+      cursorY = totalsBottom - 12;
+    };
+
+    const drawBoxedTextBlock = (title: string, lines: string[]) => {
+      if (lines.length === 0) return;
+      const padding = 8;
+      const size = 9;
+      const lineHeight = 12;
+      const contentLines = buildLines(lines, contentWidth - padding * 2, size);
+      const boxHeight = padding * 2 + size + 6 + contentLines.length * lineHeight;
+      ensureSpace(boxHeight + 8);
+      const boxTop = cursorY;
+      const boxBottom = cursorY - boxHeight;
+
+      page.drawRectangle({
+        x: margin,
+        y: boxBottom,
+        width: contentWidth,
+        height: boxHeight,
+        borderColor: colors.line,
+        borderWidth: 0.6,
+        color: colors.softFill,
+      });
+      page.drawText(title, {
+        x: margin + padding,
+        y: boxTop - padding - size,
         size,
         font: bold,
         color: colors.primary,
       });
-      cursorY -= size + 6;
-      page.drawLine({
-        start: { x: margin, y: cursorY },
-        end: { x: page.getSize().width - margin, y: cursorY },
-        thickness: 0.5,
-        color: colors.line,
-      });
-      cursorY -= 12;
-    };
-
-    const drawKeyValueColumn = (
-      items: Array<{ label: string; value?: string | null }>,
-      x: number,
-      startY: number,
-      width: number
-    ) => {
-      let y = startY;
-      const labelSize = 8;
-      const valueSize = 10;
-      items.forEach((item) => {
-        const value = (item.value ?? '').trim();
-        if (!value) return;
-        y -= labelSize;
-        page.drawText(item.label.toUpperCase(), { x, y, size: labelSize, font, color: colors.muted });
-        y -= 2;
-        const lines = wrapText(value, width, font, valueSize);
-        lines.forEach((line) => {
-          y -= valueSize;
-          page.drawText(line, { x, y, size: valueSize, font, color: colors.text });
-          y -= 2;
+      let textY = boxTop - padding - size - 6 - size;
+      contentLines.forEach((line) => {
+        if (!line) {
+          textY -= lineHeight;
+          return;
+        }
+        page.drawText(line, {
+          x: margin + padding,
+          y: textY,
+          size,
+          font,
+          color: colors.text,
         });
-        y -= 6;
+        textY -= lineHeight;
       });
-      return y;
-    };
-
-    const drawKeyValueColumns = (
-      left: Array<{ label: string; value?: string | null }>,
-      right: Array<{ label: string; value?: string | null }>
-    ) => {
-      const colGap = 16;
-      const colWidth = (contentWidth - colGap) / 2;
-      const estimated = Math.max(left.length, right.length) * 22 + 10;
-      ensureSpace(estimated);
-      const startY = cursorY;
-      const leftEnd = drawKeyValueColumn(left, margin, startY, colWidth);
-      const rightEnd = drawKeyValueColumn(right, margin + colWidth + colGap, startY, colWidth);
-      cursorY = Math.min(leftEnd, rightEnd) - 4;
+      cursorY = boxBottom - 12;
     };
 
     drawHeader();
     drawFooter();
 
-    const direccionLine = recibo.direccion
-      ? [recibo.direccion.direccion, recibo.direccion.comuna, recibo.direccion.region]
-          .filter(Boolean)
-          .join(', ')
-      : '';
+    drawInfoBoxes();
 
-    drawSectionTitle('Cliente y pedido');
-    drawKeyValueColumns(
-      [
-        { label: 'Contacto', value: recibo.direccion?.nombreContacto ?? '' },
-        { label: 'Email', value: recibo.direccion?.email ?? '' },
-        { label: 'Telefono', value: recibo.direccion?.telefono ?? '' },
-        { label: 'Direccion', value: direccionLine },
-      ],
-      [
-        { label: 'Pedido', value: recibo.pedido.codigo || recibo.pedido.id },
-        { label: 'Estado pedido', value: recibo.pedido.estado },
-        { label: 'Fecha pedido', value: formatDateCL(recibo.pedido.createdAt) },
-      ]
-    );
-
-    const transLeft = [
-      { label: 'Pago ID', value: recibo.pagoId },
-      { label: 'Estado pago', value: recibo.estado },
-      { label: 'Metodo', value: recibo.metodo },
-    ];
-    if (recibo.transbank?.authorizationCode) {
-      transLeft.push({ label: 'Autorizacion', value: recibo.transbank.authorizationCode });
-    }
-    if (recibo.transbank?.paymentTypeCode) {
-      transLeft.push({ label: 'Tipo de pago', value: recibo.transbank.paymentTypeCode });
-    }
-    if (recibo.transbank?.cardNumber) {
-      transLeft.push({ label: 'Tarjeta', value: recibo.transbank.cardNumber });
-    }
-
-    const transRight = [
-      { label: 'Monto', value: formatCurrencyCLP(recibo.monto) },
-      { label: 'Fecha pago', value: formatDateCL(recibo.createdAt) },
-    ];
-    if (recibo.transbank?.transactionDate) {
-      transRight.push({ label: 'Fecha Transbank', value: formatDateCL(recibo.transbank.transactionDate) });
-    }
-
-    drawSectionTitle('Transaccion');
-    drawKeyValueColumns(transLeft, transRight);
-
-    ensureSpace(60);
-    drawSectionTitle('Resumen');
-    const totalsWidth = 220;
-    const totalsX = page.getSize().width - margin - totalsWidth;
-    const totalLines = [{ label: 'Total', value: formatCurrencyCLP(recibo.monto) }];
-    totalLines.forEach((line) => {
-      const labelSize = 9;
-      const valueSize = 11;
-      const labelWidth = totalsWidth * 0.55;
-      page.drawText(line.label, {
-        x: totalsX,
-        y: cursorY - valueSize,
-        size: labelSize,
-        font,
-        color: colors.muted,
-      });
-      const valueWidth = bold.widthOfTextAtSize(line.value, valueSize);
-      page.drawText(line.value, {
-        x: totalsX + totalsWidth - valueWidth,
-        y: cursorY - valueSize,
-        size: valueSize,
-        font: bold,
-        color: colors.text,
-      });
-      cursorY -= 18;
+    page.drawLine({
+      start: { x: margin, y: cursorY },
+      end: { x: page.getSize().width - margin, y: cursorY },
+      thickness: 0.6,
+      color: colors.line,
     });
+    cursorY -= 16;
+
+    const summaryRows = [
+      { label: 'Monto pagado', value: formatCurrencyCLP(recibo.monto) },
+      { label: 'Estado', value: recibo.estado },
+      { label: 'Fecha pago', value: formatDateCL(recibo.createdAt) },
+      { label: 'Pedido', value: recibo.pedido.codigo || recibo.pedido.id },
+    ];
+    const labelWidth = 140;
+    const valueWidth = contentWidth - labelWidth;
+
+    drawSummaryHeader(labelWidth);
+    summaryRows.forEach((row, index) => {
+      drawSummaryRow(row.label, row.value, labelWidth, valueWidth, index);
+    });
+
+    cursorY -= 10;
+
+    drawTotalsBox();
+
+    const noteLines = RECEIPT_NOTES
+      ? RECEIPT_NOTES.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+      : [];
+    const companyLines = [
+      COMPANY_NAME,
+      COMPANY_PHONE,
+      COMPANY_EMAIL,
+      COMPANY_WEBSITE,
+    ].filter(Boolean);
+    const footerLines = noteLines.length ? [...noteLines, '', ...companyLines] : companyLines;
+
+    drawBoxedTextBlock('Gracias por tu compra', footerLines);
 
     const pdfBytes = await doc.save(); // Uint8Array
 
