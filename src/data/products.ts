@@ -28,6 +28,8 @@ export interface Product {
   descripcionCorta?: string;
   descripcionTecnica?: string;
   unidadVenta?: string;
+  // Cantidad mínima de compra
+  minQuantity?: number;
 }
 
 export const products: Product[] = [

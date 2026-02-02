@@ -10,6 +10,7 @@ export type CartItem = {
   unitPrice: number;
   quantity: number;
   image?: string;
+  minQuantity?: number; // Cantidad mínima de compra
 };
 
 // Genera una clave única para identificar items (producto + variante)
@@ -116,9 +117,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setItems((prev) =>
       prev.map((item) => {
         const itemKey = getItemKey(item.productId, item.varianteId);
-        return itemKey === targetKey
-          ? { ...item, quantity: Math.max(1, Math.floor(quantity) || 1) }
-          : item;
+        if (itemKey !== targetKey) {
+          return item;
+        }
+        const minQty = item.minQuantity && item.minQuantity > 0 ? item.minQuantity : 1;
+        const nextQty = Math.floor(quantity);
+        return { ...item, quantity: Math.max(minQty, Number.isFinite(nextQty) ? nextQty : minQty) };
       }),
     );
   }, []);

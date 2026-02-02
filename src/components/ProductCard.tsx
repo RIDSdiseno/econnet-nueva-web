@@ -8,6 +8,11 @@ import { getProductImages } from '../utils/productImages';
 interface ProductCardProps {
   product: Product;
   index: number;
+  autoOpen?: boolean;
+  hideCard?: boolean;
+  onModalClose?: () => void;
+  modalZIndexClass?: string;
+  quantityModalZIndexClass?: string;
 }
 
 const categoryIcons: Record<string, ReactNode> = {
@@ -71,7 +76,15 @@ const palettes = [
   },
 ];
 
-const ProductCard = ({ product, index }: ProductCardProps) => {
+const ProductCard = ({
+  product,
+  index,
+  autoOpen = false,
+  hideCard = false,
+  onModalClose,
+  modalZIndexClass = 'z-[60]',
+  quantityModalZIndexClass = 'z-[70]',
+}: ProductCardProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isQuantityModalOpen, setIsQuantityModalOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
@@ -137,12 +150,16 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
   // Mostrar rango de precios si tiene variantes con precios diferentes
   const mostrarRangoPrecios = product.precioPorVariante && product.precioMinimo !== product.precioMaximo;
 
+  // Cantidad mínima de compra (1 si no está definida o es 0)
+  const minQuantity = product.minQuantity && product.minQuantity > 0 ? product.minQuantity : 1;
+
   const details = [
     { label: 'Unidad', value: product.unit },
     { label: 'Categoria', value: product.category },
     { label: 'SKU', value: sku },
     { label: 'Stock', value: stockResumen },
     { label: 'Despacho', value: despacho },
+    ...(minQuantity > 1 ? [{ label: 'Compra mínima', value: `${minQuantity} unidades` }] : []),
   ].filter((detail) => detail.value);
   const previewImage = gallery[0];
 
@@ -156,6 +173,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedVariante(null);
+    onModalClose?.();
   };
 
   const handleCardKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
@@ -167,7 +185,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
 
   const openQuantityModal = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    setQuantity(1);
+    setQuantity(minQuantity);  // Iniciar con la cantidad mínima
     // Si tiene variantes, seleccionar la primera con stock > 0 por defecto
     if (tieneVariantes && primeraVarianteConStock) {
       setSelectedVariante(primeraVarianteConStock);
@@ -179,7 +197,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
 
   const closeQuantityModal = () => {
     setIsQuantityModalOpen(false);
-    setQuantity(1);
+    setQuantity(minQuantity);
     setSelectedVariante(null);
   };
 
@@ -201,6 +219,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
         unitPrice: precioEfectivo,
         quantity: quantity,
         image: product.image || undefined,
+        minQuantity: minQuantity > 1 ? minQuantity : undefined,
       },
     ]);
     closeQuantityModal();
@@ -214,7 +233,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
   };
 
   const decrementQuantity = () => {
-    if (quantity > 1) {
+    if (quantity > minQuantity) {
       setQuantity((prev) => prev - 1);
     }
   };
@@ -222,16 +241,16 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
   const handleQuantityInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(event.target.value, 10);
     const maxStock = stockEfectivo ?? 9999;
-    if (!isNaN(value) && value >= 1 && value <= maxStock) {
+    if (!isNaN(value) && value >= minQuantity && value <= maxStock) {
       setQuantity(value);
     } else if (event.target.value === '') {
-      setQuantity(1);
+      setQuantity(minQuantity);
     }
   };
 
   const handleVarianteSelect = (variante: ProductVariante) => {
     setSelectedVariante(variante);
-    setQuantity(1); // Reset cantidad al cambiar variante
+    setQuantity(minQuantity); // Reset cantidad al cambiar variante (respetando mínimo)
   };
 
   useEffect(() => {
@@ -239,6 +258,13 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
       overlayRef.current?.scrollTo({ top: 0 });
     }
   }, [isModalOpen]);
+
+  useEffect(() => {
+    if (autoOpen && !isModalOpen) {
+      openModal();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpen]);
 
   useEffect(() => {
     if (!isModalOpen) {
@@ -269,7 +295,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsQuantityModalOpen(false);
-        setQuantity(1);
+        setQuantity(minQuantity);
       }
     };
 
@@ -285,17 +311,18 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
 
   return (
     <>
-      <article
-        role="button"
-        tabIndex={0}
-        aria-expanded={isModalOpen}
-        aria-controls={modalId}
-        aria-haspopup="dialog"
-        aria-label={`Ver detalles de ${product.name}`}
-        onClick={openModal}
-        onKeyDown={handleCardKeyDown}
-        className="card-reveal group flex h-full cursor-pointer flex-col rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_20px_50px_rgba(15,23,32,0.08)] transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_30px_70px_rgba(15,23,32,0.15)] hover:border-[#E04040]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E04040] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-      >
+      {!hideCard && (
+        <article
+          role="button"
+          tabIndex={0}
+          aria-expanded={isModalOpen}
+          aria-controls={modalId}
+          aria-haspopup="dialog"
+          aria-label={`Ver detalles de ${product.name}`}
+          onClick={openModal}
+          onKeyDown={handleCardKeyDown}
+          className="card-reveal group flex h-full cursor-pointer flex-col rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_20px_50px_rgba(15,23,32,0.08)] transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_30px_70px_rgba(15,23,32,0.15)] hover:border-[#E04040]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E04040] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        >
         <div
           className={`relative flex h-64 flex-col gap-4 overflow-hidden rounded-2xl bg-gradient-to-br ${palette.gradient} p-5 ring-1 ${palette.ring} sm:h-72 transition-all duration-300 group-hover:scale-[1.02]`}
         >
@@ -369,6 +396,14 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
               {tieneVariantes && (
                 <p className="text-[0.5rem] text-white/40 mt-1">Selecciona variante para ver precio</p>
               )}
+              {minQuantity > 1 && (
+                <p className="text-[0.5rem] text-amber-300 mt-1 flex items-center gap-1">
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Compra mínima: {minQuantity} unidades
+                </p>
+              )}
             </div>
             <button
               type="button"
@@ -383,13 +418,14 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
             </button>
           </div>
         </div>
-      </article>
+        </article>
+      )}
 
       {isModalOpen && typeof document !== 'undefined'
         ? createPortal(
             <div
               ref={overlayRef}
-              className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto px-4 py-8 sm:py-12"
+              className={`fixed inset-0 ${modalZIndexClass} flex items-center justify-center overflow-y-auto px-4 py-8 sm:py-12`}
               onClick={closeModal}
             >
               <div className="modal-backdrop fixed inset-0 bg-gradient-to-br from-[#1b0b0b]/80 via-[#2a1515]/75 to-[#1b0b0b]/80 backdrop-blur-lg"></div>
@@ -483,6 +519,11 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                               </span>
                             )}
                           </p>
+                          {minQuantity > 1 && (
+                            <p className="mt-2 text-xs text-amber-300">
+                              Compra mínima: {minQuantity} unidades
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -545,6 +586,11 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                             ? 'Selecciona una variante para agregar al carrito.'
                             : 'Agrega al carrito y coordina despacho o retiro en bodega.'}
                         </p>
+                        {minQuantity > 1 && (
+                          <p className="text-xs text-amber-600 mb-4">
+                            Compra mínima: <span className="font-semibold">{minQuantity}</span> unidades
+                          </p>
+                        )}
                         <button
                           type="button"
                           onClick={openQuantityModal}
@@ -582,7 +628,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
       {isQuantityModalOpen && typeof document !== 'undefined'
         ? createPortal(
             <div
-              className="fixed inset-0 z-[70] flex items-center justify-center px-4 py-8"
+              className={`fixed inset-0 ${quantityModalZIndexClass} flex items-center justify-center px-4 py-8`}
               onClick={closeQuantityModal}
             >
               <div className="fixed inset-0 bg-gradient-to-br from-[#1b0b0b]/80 via-[#2a1515]/75 to-[#1b0b0b]/80 backdrop-blur-lg"></div>
@@ -669,7 +715,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                     <button
                       type="button"
                       onClick={decrementQuantity}
-                      disabled={quantity <= 1}
+                      disabled={quantity <= minQuantity}
                       className="rounded-full border-2 border-slate-200 bg-white p-3 text-slate-600 transition-all hover:bg-slate-100 hover:border-[#E04040]/30 hover:text-[#B01010] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 disabled:hover:text-slate-600"
                       aria-label="Disminuir cantidad"
                     >
@@ -680,7 +726,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
 
                     <input
                       type="number"
-                      min={1}
+                      min={minQuantity}
                       max={stockEfectivo ?? 9999}
                       value={quantity}
                       onChange={handleQuantityInputChange}
@@ -704,6 +750,11 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
                   {stockEfectivo !== null && (
                     <p className="text-center text-xs text-slate-500 mb-4">
                       Stock disponible: <span className="font-semibold text-slate-700">{stockEfectivo}</span> unidades
+                    </p>
+                  )}
+                  {minQuantity > 1 && (
+                    <p className="text-center text-xs text-amber-600 mb-4">
+                      Compra mínima: <span className="font-semibold">{minQuantity}</span> unidades
                     </p>
                   )}
 

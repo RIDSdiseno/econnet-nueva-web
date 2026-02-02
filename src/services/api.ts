@@ -140,6 +140,7 @@ export type ProductoCatalogo = {
   variantes?: ProductoVarianteCatalogo[];
   precioMinimo?: number;
   precioMaximo?: number;
+  minQuantity?: number;  // Cantidad mínima de compra
   // Flags de visibilidad (segun backend)
   visibleEcommerce?: boolean | number | string | null;
   visibleEnEcommerce?: boolean | number | string | null;
@@ -204,6 +205,7 @@ const mapearProducto = (producto: ProductoCatalogo): Product => {
     descripcionCorta: producto.descripcionCorta ?? undefined,
     descripcionTecnica: producto.descripcionTecnica ?? undefined,
     unidadVenta: producto.unidadVenta,
+    minQuantity: producto.minQuantity ?? 0,
   };
 };
 

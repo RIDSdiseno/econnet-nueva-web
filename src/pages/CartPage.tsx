@@ -524,7 +524,12 @@ const CartPage = () => {
         });
       }
     } catch (error) {
-      const mensaje = error instanceof Error ? error.message : 'No se pudo iniciar el pago con Stripe.';
+      let mensaje = error instanceof Error ? error.message : 'No se pudo iniciar el pago con Stripe.';
+      // Manejar error de cantidad mínima
+      const errorDetails = (error as { details?: { code?: string; minQuantity?: number; productName?: string } })?.details;
+      if (errorDetails?.code === 'MIN_QTY') {
+        mensaje = `El producto "${errorDetails.productName}" requiere mínimo ${errorDetails.minQuantity} unidades.`;
+      }
       uiLogger.error('stripe_intent_error', { message: mensaje });
       setStripeError(mensaje);
       setMetodoPago(null);
@@ -562,7 +567,12 @@ const CartPage = () => {
       });
       iniciarPagoTransbankFormulario(pedido.pedidoId);
     } catch (error) {
-      const mensaje = error instanceof Error ? error.message : 'No se pudo iniciar el pago.';
+      let mensaje = error instanceof Error ? error.message : 'No se pudo iniciar el pago.';
+      // Manejar error de cantidad mínima
+      const errorDetails = (error as { details?: { code?: string; minQuantity?: number; productName?: string } })?.details;
+      if (errorDetails?.code === 'MIN_QTY') {
+        mensaje = `El producto "${errorDetails.productName}" requiere mínimo ${errorDetails.minQuantity} unidades.`;
+      }
       uiLogger.error('payment_start_error', { metodo: 'transbank', message: mensaje });
       setPagoError(mensaje);
       setMetodoPago(null);
@@ -601,7 +611,12 @@ const CartPage = () => {
       });
       window.location.href = pago.redirectUrl;
     } catch (error) {
-      const mensaje = error instanceof Error ? error.message : 'No se pudo iniciar el pago.';
+      let mensaje = error instanceof Error ? error.message : 'No se pudo iniciar el pago.';
+      // Manejar error de cantidad mínima
+      const errorDetails = (error as { details?: { code?: string; minQuantity?: number; productName?: string } })?.details;
+      if (errorDetails?.code === 'MIN_QTY') {
+        mensaje = `El producto "${errorDetails.productName}" requiere mínimo ${errorDetails.minQuantity} unidades.`;
+      }
       uiLogger.error('payment_start_error', { metodo: 'mercadopago', message: mensaje });
       setPagoError(mensaje);
       setMetodoPago(null);
@@ -652,58 +667,64 @@ const CartPage = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {items.map((item) => (
-              <div
-                key={item.varianteId ? `${item.productId}::${item.varianteId}` : item.productId}
-                className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,32,0.08)]"
-              >
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                    {item.image && (
-                      <div className="flex h-20 w-24 items-center justify-center rounded-2xl border border-[#F0E0E0] bg-white/80 p-3">
-                        <img src={item.image} alt={item.name} className="h-full w-full object-contain" />
+            {items.map((item) => {
+              const minQty = item.minQuantity && item.minQuantity > 0 ? item.minQuantity : 1;
+              return (
+                <div
+                  key={item.varianteId ? `${item.productId}::${item.varianteId}` : item.productId}
+                  className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,32,0.08)]"
+                >
+                  <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                      {item.image && (
+                        <div className="flex h-20 w-24 items-center justify-center rounded-2xl border border-[#F0E0E0] bg-white/80 p-3">
+                          <img src={item.image} alt={item.name} className="h-full w-full object-contain" />
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-[0.25em] text-slate-500">{item.unit}</p>
+                        <h3 className="text-xl font-semibold text-slate-900">{item.name}</h3>
+                        <p className="text-sm text-slate-600">{item.description}</p>
+                        {minQty > 1 && (
+                          <p className="text-xs font-semibold text-amber-600">Compra mínima: {minQty} unidades</p>
+                        )}
                       </div>
-                    )}
-                    <div className="space-y-2">
-                      <p className="text-xs uppercase tracking-[0.25em] text-slate-500">{item.unit}</p>
-                      <h3 className="text-xl font-semibold text-slate-900">{item.name}</h3>
-                      <p className="text-sm text-slate-600">{item.description}</p>
                     </div>
-                  </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-slate-600">
-                      Cantidad
-                      <input
-                        type="number"
-                        min={1}
-                        step={1}
-                        value={item.quantity}
-                        onChange={(event) => updateQuantity(item.productId, Number(event.target.value), item.varianteId)}
-                        className="rounded-2xl border border-slate-200 bg-white w-full px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040]"
-                      />
-                    </label>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                      <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Neto unitario</p>
-                      <p className="text-base font-semibold text-slate-900">{formatCurrency(item.unitPrice)}</p>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                      <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-slate-600">
+                        Cantidad
+                        <input
+                          type="number"
+                          min={minQty}
+                          step={1}
+                          value={item.quantity}
+                          onChange={(event) => updateQuantity(item.productId, Number(event.target.value), item.varianteId)}
+                          className="rounded-2xl border border-slate-200 bg-white w-full px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040]"
+                        />
+                      </label>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                        <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Neto unitario</p>
+                        <p className="text-base font-semibold text-slate-900">{formatCurrency(item.unitPrice)}</p>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                        <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Neto total</p>
+                        <p className="text-base font-semibold text-slate-900">
+                          {formatCurrency(item.unitPrice * item.quantity)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.productId, item.varianteId)}
+                        className="rounded-full border border-[#F0E0E0] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#F7EAEA]"
+                      >
+                        Quitar
+                      </button>
                     </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                      <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Neto total</p>
-                      <p className="text-base font-semibold text-slate-900">
-                        {formatCurrency(item.unitPrice * item.quantity)}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(item.productId, item.varianteId)}
-                      className="rounded-full border border-[#F0E0E0] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#F7EAEA]"
-                    >
-                      Quitar
-                    </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             <div className="grid gap-6 md:grid-cols-[1.1fr_0.9fr]">
               <div className="rounded-3xl border border-[#F0E0E0] bg-white/80 p-6">

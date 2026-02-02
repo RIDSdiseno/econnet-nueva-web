@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import type { Product } from '../data/products';
 import { useProductos } from '../hooks/useProductos';
 import { useCart } from '../context/CartContext';
+import ProductCard from './ProductCard';
 
 type SearchModalProps = {
   open: boolean;
@@ -14,10 +15,23 @@ const formatCurrency = (value: number) => `CLP ${value.toLocaleString('es-CL')}`
 const SearchModal = ({ open, onClose }: SearchModalProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const { productos, cargando, error } = useProductos({ search: searchQuery, limit: 8 });
   const { addItems } = useCart();
   const hasQuery = searchTerm.trim().length > 0;
+
+  const handleClose = useCallback(() => {
+    setDetailOpen(false);
+    setSelectedProduct(null);
+    onClose();
+  }, [onClose]);
+
+  const handleOpenDetail = useCallback((product: Product) => {
+    setSelectedProduct(product);
+    setDetailOpen(true);
+  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -47,7 +61,7 @@ const SearchModal = ({ open, onClose }: SearchModalProps) => {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose();
+        handleClose();
       }
     };
 
@@ -59,14 +73,14 @@ const SearchModal = ({ open, onClose }: SearchModalProps) => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [open, onClose]);
+  }, [open, handleClose]);
 
   if (!open || typeof document === 'undefined') {
     return null;
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-start justify-center px-4 py-10" onClick={onClose}>
+    <div className="fixed inset-0 z-[70] flex items-start justify-center px-4 py-10" onClick={handleClose}>
       <div className="modal-backdrop fixed inset-0 bg-black/40 backdrop-blur-sm"></div>
       <div
         role="dialog"
@@ -101,7 +115,7 @@ const SearchModal = ({ open, onClose }: SearchModalProps) => {
             </div>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="rounded-full border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
             >
               Cerrar
@@ -126,7 +140,16 @@ const SearchModal = ({ open, onClose }: SearchModalProps) => {
               {productos.map((product) => (
                 <div
                   key={product.id}
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm transition hover:border-[#E04040]/30 hover:shadow-md"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleOpenDetail(product)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleOpenDetail(product);
+                    }
+                  }}
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm transition hover:border-[#E04040]/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E04040]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -134,6 +157,9 @@ const SearchModal = ({ open, onClose }: SearchModalProps) => {
                       <p className="mt-1 text-xs text-slate-500">{product.unit}</p>
                       {typeof product.stockDisponible === 'number' && (
                         <p className="mt-1 text-xs text-slate-400">Stock: {product.stockDisponible}</p>
+                      )}
+                      {product.minQuantity && product.minQuantity > 1 && (
+                        <p className="mt-1 text-xs text-amber-600">Compra mínima: {product.minQuantity} unidades</p>
                       )}
                     </div>
                     <div className="text-right">
@@ -143,7 +169,9 @@ const SearchModal = ({ open, onClose }: SearchModalProps) => {
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <button
                       type="button"
-                      onClick={() =>
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        const minQty = product.minQuantity && product.minQuantity > 0 ? product.minQuantity : 1;
                         addItems([
                           {
                             productId: product.id,
@@ -151,22 +179,26 @@ const SearchModal = ({ open, onClose }: SearchModalProps) => {
                             description: product.description,
                             unit: product.unit,
                             unitPrice: product.price,
-                            quantity: 1,
+                            quantity: minQty,
                             image: product.image || undefined,
+                            minQuantity: product.minQuantity ?? 0,
                           },
-                        ])
-                      }
+                        ]);
+                      }}
                       className="rounded-full border border-[#F0E0E0] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#F7EAEA]"
                     >
                       Agregar
                     </button>
-                    <Link
-                      to="/products"
-                      onClick={onClose}
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleOpenDetail(product);
+                      }}
                       className="text-xs font-semibold text-slate-600 transition hover:text-[#B01010]"
                     >
                       Ver mas
-                    </Link>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -178,6 +210,17 @@ const SearchModal = ({ open, onClose }: SearchModalProps) => {
           )}
         </div>
       </div>
+      {detailOpen && selectedProduct && (
+        <ProductCard
+          product={selectedProduct}
+          index={0}
+          autoOpen
+          hideCard
+          onModalClose={() => setDetailOpen(false)}
+          modalZIndexClass="z-[80]"
+          quantityModalZIndexClass="z-[90]"
+        />
+      )}
     </div>,
     document.body,
   );
