@@ -110,10 +110,20 @@ const QuoteDetailPage = () => {
       });
 
       const observaciones = parseObservaciones(detalleActual.observaciones);
+      const regionObservada = observaciones.region ?? '';
+      const comunaObservada = observaciones.comuna ?? '';
+      const comunaRegionLegacy = observaciones.comunaRegion ?? '';
+      const usarRegionComuna = Boolean(regionObservada || comunaObservada);
+
       const notas = [
         { label: 'Direccion', value: observaciones.direccion },
         { label: 'Tipo de obra', value: observaciones.tipoObra },
-        { label: 'Comuna o region', value: observaciones.comunaRegion },
+        ...(usarRegionComuna
+          ? [
+              { label: 'Region', value: regionObservada },
+              { label: 'Comuna', value: comunaObservada },
+            ]
+          : [{ label: 'Comuna o region', value: comunaRegionLegacy }]),
         { label: 'Ubicacion', value: observaciones.ubicacion },
         { label: 'Detalle adicional', value: observaciones.detalleAdicional },
         { label: 'Mensaje', value: observaciones.mensaje ?? observaciones.observaciones },
@@ -719,17 +729,19 @@ const QuoteDetailPage = () => {
 
       const observacionesDireccion =
         observaciones.direccion ?? observaciones.direccionDespacho ?? observaciones.ubicacion ?? '';
-      const observacionesComuna =
-        observaciones.comunaRegion ?? observaciones.comuna ?? observaciones.region ?? '';
+      const observacionesRegion = observaciones.region ?? '';
+      const observacionesComuna = observaciones.comuna ?? observaciones.comunaRegion ?? '';
+      const hasRegion = Boolean(observacionesRegion);
+      const hasComuna = Boolean(observacionesComuna);
       const validezLabel =
         Number.isFinite(PDF_VALIDITY_DAYS) && PDF_VALIDITY_DAYS > 0 ? `${PDF_VALIDITY_DAYS} dias` : '-';
       const clienteNombre = detalleActual.empresa?.trim() || detalleActual.nombreContacto;
 
-      drawSectionTitle('Datos del cliente');
-      drawInfoTable([
+      const rutValue = detalleActual.rut?.trim() ?? '';
+      const infoRows = [
         {
           left: { label: 'Cliente', value: clienteNombre },
-          right: { label: 'RUT', value: detalleActual.rut ?? '' },
+          right: { label: rutValue ? 'RUT' : '', value: rutValue },
         },
         {
           left: { label: 'Telefono', value: detalleActual.telefono ?? '' },
@@ -737,13 +749,24 @@ const QuoteDetailPage = () => {
         },
         {
           left: { label: 'Direccion', value: observacionesDireccion || '-' },
-          right: { label: 'Ciudad / Comuna', value: observacionesComuna || '-' },
+          right: { label: hasComuna ? 'Comuna' : '', value: observacionesComuna || '' },
         },
-        {
-          left: { label: 'Fecha emision', value: formatDateCL(detalleActual.createdAt) },
-          right: { label: 'Validez', value: validezLabel },
-        },
-      ]);
+      ];
+
+      if (hasRegion) {
+        infoRows.push({
+          left: { label: 'Region', value: observacionesRegion || '-' },
+          right: { label: '', value: '' },
+        });
+      }
+
+      infoRows.push({
+        left: { label: 'Fecha emision', value: formatDateCL(detalleActual.createdAt) },
+        right: { label: 'Validez', value: validezLabel },
+      });
+
+      drawSectionTitle('Datos del cliente');
+      drawInfoTable(infoRows);
 
       drawSectionTitle('Detalle de productos');
       if (!detalleActual.items?.length) {

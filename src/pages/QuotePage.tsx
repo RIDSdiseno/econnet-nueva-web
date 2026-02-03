@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Product } from '../data/products';
 import { useProductos } from '../hooks/useProductos';
 import { crearCotizacion } from '../services/api';
+import { getComunasByRegion, getRegiones, type DpaComuna, type DpaRegion } from '../services/dpaService';
 import ModalSuccessCotizacion from '../components/ModalSuccessCotizacion';
 import { useQuoteHistory } from '../context/QuoteHistoryContext';
 import { useAuth } from '../context/AuthContext';
@@ -31,11 +32,34 @@ type QuoteFormErrors = {
   name?: string;
   email?: string;
   phone?: string;
+  region?: string;
+  comuna?: string;
+  message?: string;
   contact?: string;
   items?: string;
 };
 
 const formatCurrency = (value: number) => `CLP ${value.toLocaleString('es-CL')}`;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_MESSAGE_LENGTH = 500;
+
+const normalizarTelefonoChile = (valor: string) => {
+  const digits = valor.replace(/\D/g, '');
+  if (!digits) {
+    return { normalized: '', isValid: true, isEmpty: true };
+  }
+
+  let local = digits;
+  if (local.startsWith('56')) {
+    local = local.slice(2);
+  }
+
+  if (local.length !== 9 || !local.startsWith('9')) {
+    return { normalized: '', isValid: false, isEmpty: false };
+  }
+
+  return { normalized: `+56${local}`, isValid: true, isEmpty: false };
+};
 
 const createItem = (product: Product): QuoteItem => ({
   id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -95,10 +119,19 @@ const QuotePage = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [items, setItems] = useState<QuoteItem[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [regiones, setRegiones] = useState<DpaRegion[]>([]);
+  const [comunas, setComunas] = useState<DpaComuna[]>([]);
+  const [regionSeleccionada, setRegionSeleccionada] = useState('');
+  const [comunaSeleccionada, setComunaSeleccionada] = useState('');
+  const [dpaError, setDpaError] = useState<string | null>(null);
+  const [cargandoRegiones, setCargandoRegiones] = useState(false);
+  const [cargandoComunas, setCargandoComunas] = useState(false);
+  const [messageValue, setMessageValue] = useState('');
   const totalNet = items.reduce((acc, item) => acc + item.cantidad * item.precioUnitario, 0);
   const canAddItem = Boolean(selectedProductId) && !submitting;
   const isSubmitDisabled = items.length === 0 || submitting;
   const hasContactError = Boolean(formErrors.contact);
+  const messageLength = messageValue.length;
   const detalleUrl = submitted ? buildDetalleUrl(submitted) : null;
 
   const handleCloseSuccess = () => setSuccessOpen(false);
@@ -125,6 +158,71 @@ const QuotePage = () => {
   }, [searchTerm]);
 
   useEffect(() => {
+    let active = true;
+    setCargandoRegiones(true);
+    getRegiones()
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        setRegiones(data);
+        setDpaError(null);
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+        setDpaError('No se pudieron cargar las regiones. Intenta nuevamente.');
+      })
+      .finally(() => {
+        if (!active) {
+          return;
+        }
+        setCargandoRegiones(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!regionSeleccionada) {
+      setComunas([]);
+      setComunaSeleccionada('');
+      return;
+    }
+
+    let active = true;
+    setCargandoComunas(true);
+    getComunasByRegion(regionSeleccionada)
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        setComunas(data);
+        setDpaError(null);
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+        setComunas([]);
+        setDpaError('No se pudieron cargar las comunas. Intenta nuevamente.');
+      })
+      .finally(() => {
+        if (!active) {
+          return;
+        }
+        setCargandoComunas(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [regionSeleccionada]);
+
+  useEffect(() => {
     if (!successOpen) {
       return;
     }
@@ -148,6 +246,20 @@ const QuotePage = () => {
     if (submitError) {
       setSubmitError(null);
     }
+  };
+
+  const handleRegionChange = (value: string) => {
+    setRegionSeleccionada(value);
+    setComunaSeleccionada('');
+    clearFieldError('region');
+    clearFieldError('comuna');
+    clearSubmitError();
+  };
+
+  const handleComunaChange = (value: string) => {
+    setComunaSeleccionada(value);
+    clearFieldError('comuna');
+    clearSubmitError();
   };
 
   const handleItemChange = (id: string, updates: Partial<QuoteItem>) => {
@@ -226,8 +338,9 @@ const QuotePage = () => {
     const telefono = String(formData.get('phone') ?? '').trim();
     const direccion = String(formData.get('address') ?? '').trim();
     const tipoObra = String(formData.get('projectType') ?? '').trim();
-    const ubicacion = String(formData.get('location') ?? '').trim();
-    const mensaje = String(formData.get('message') ?? '').trim();
+    const regionCodigo = regionSeleccionada;
+    const comunaCodigo = comunaSeleccionada;
+    const mensaje = messageValue.trim();
 
     const nextErrors: QuoteFormErrors = {};
 
@@ -237,20 +350,32 @@ const QuotePage = () => {
       nextErrors.name = 'El nombre no puede superar los 200 caracteres.';
     }
 
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const telefonoNormalizado = normalizarTelefonoChile(telefono);
+
+    if (email && !EMAIL_REGEX.test(email)) {
       nextErrors.email = 'Ingresa un email valido (ej: correo@empresa.cl).';
     } else if (email && email.length > 200) {
       nextErrors.email = 'El email no puede superar los 200 caracteres.';
     }
 
-    if (telefono && telefono.length < 6) {
-      nextErrors.phone = 'El telefono debe tener al menos 6 caracteres.';
-    } else if (telefono && telefono.length > 30) {
-      nextErrors.phone = 'El telefono no puede superar los 30 caracteres.';
+    if (telefono && !telefonoNormalizado.isValid) {
+      nextErrors.phone = 'Ingresa un telefono valido (9XXXXXXXX o +569XXXXXXXX).';
     }
 
-    if (!email && !telefono) {
+    if (!email && (!telefonoNormalizado.normalized || telefonoNormalizado.isEmpty)) {
       nextErrors.contact = 'Debes ingresar al menos un email o telefono.';
+    }
+
+    if (!regionCodigo) {
+      nextErrors.region = 'Selecciona una region.';
+    }
+
+    if (regionCodigo && !comunaCodigo) {
+      nextErrors.comuna = 'Selecciona una comuna.';
+    }
+
+    if (mensaje.length > MAX_MESSAGE_LENGTH) {
+      nextErrors.message = 'El mensaje no puede superar los 500 caracteres.';
     }
 
     if (items.length === 0) {
@@ -263,6 +388,12 @@ const QuotePage = () => {
       const itemCantidadInvalida = items.find((item) => item.cantidad < 1);
       if (!nextErrors.items && itemCantidadInvalida) {
         nextErrors.items = 'La cantidad minima es 1.';
+      }
+      const itemObservacionLarga = items.find(
+        (item) => (item.observacion?.trim().length ?? 0) > MAX_MESSAGE_LENGTH,
+      );
+      if (!nextErrors.items && itemObservacionLarga) {
+        nextErrors.items = 'La observacion del item no puede superar los 500 caracteres.';
       }
     }
 
@@ -280,6 +411,13 @@ const QuotePage = () => {
     setSuccessOpen(false);
 
     try {
+      const telefonoEnvio =
+        telefonoNormalizado.isValid && !telefonoNormalizado.isEmpty ? telefonoNormalizado.normalized : null;
+      const regionSeleccion = regiones.find((region) => region.codigo === regionCodigo);
+      const comunaSeleccion = comunas.find((comuna) => comuna.codigo === comunaCodigo);
+      const regionNombre = regionSeleccion?.nombre ?? null;
+      const comunaNombre = comunaSeleccion?.nombre ?? null;
+
       const idempotencyKey =
         idempotencyKeyRef.current ??
         (typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -292,12 +430,13 @@ const QuotePage = () => {
         contacto: {
           nombre,
           email: email || null,
-          telefono: telefono || null,
+          telefono: telefonoEnvio,
           empresa: empresa || null,
           direccion: direccion || null,
           mensaje: mensaje || null,
           tipoObra: tipoObra || null,
-          ubicacion: ubicacion || null,
+          region: regionNombre,
+          comuna: comunaNombre,
         },
         items: items.map((item) => ({
           productoId: item.productoId,
@@ -328,6 +467,9 @@ const QuotePage = () => {
       setSelectedProductId('');
       setSearchTerm('');
       setSearchQuery('');
+      setRegionSeleccionada('');
+      setComunaSeleccionada('');
+      setMessageValue('');
       form.reset();
     } catch (err) {
       const mensajeError = err instanceof Error ? err.message : 'No se pudo enviar la cotizacion.';
@@ -345,6 +487,15 @@ const QuotePage = () => {
         }
         if (fe['contacto.telefono'] || fe['telefono']) {
           backendErrors.phone = (fe['contacto.telefono'] ?? fe['telefono'])?.[0];
+        }
+        if (fe['contacto.region'] || fe['region']) {
+          backendErrors.region = (fe['contacto.region'] ?? fe['region'])?.[0];
+        }
+        if (fe['contacto.comuna'] || fe['comuna']) {
+          backendErrors.comuna = (fe['contacto.comuna'] ?? fe['comuna'])?.[0];
+        }
+        if (fe['contacto.mensaje'] || fe['mensaje']) {
+          backendErrors.message = (fe['contacto.mensaje'] ?? fe['mensaje'])?.[0];
         }
         if (fe['items']) {
           backendErrors.items = fe['items'][0];
@@ -510,12 +661,19 @@ const QuotePage = () => {
                     <input
                       type="tel"
                       name="phone"
-                      placeholder="+56 9 1234 5678"
+                      placeholder="912345678 o +56912345678"
+                      inputMode="tel"
                       aria-invalid={Boolean(formErrors.phone) || hasContactError}
                       onInput={() => {
                         clearFieldError('phone');
                         clearFieldError('contact');
                         clearSubmitError();
+                      }}
+                      onBlur={(event) => {
+                        const result = normalizarTelefonoChile(event.currentTarget.value);
+                        if (result.isValid && !result.isEmpty) {
+                          event.currentTarget.value = result.normalized;
+                        }
                       }}
                       className={`rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300 ${
                         formErrors.phone || hasContactError ? 'border-[#B01010] focus:ring-[#B01010]' : ''
@@ -568,24 +726,87 @@ const QuotePage = () => {
                   </div>
                 </label>
                 <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
-                  Comuna o region
+                  Region *
                   <div className="relative">
-                    <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                    <div className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${formErrors.region ? 'text-[#B01010]' : 'text-slate-400'}`}>
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                       </svg>
                     </div>
-                    <input
-                      type="text"
-                      name="location"
-                      placeholder="Santiago, RM"
-                      className="rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300"
-                    />
+                    <select
+                      name="region"
+                      required
+                      value={regionSeleccionada}
+                      onChange={(event) => handleRegionChange(event.target.value)}
+                      aria-invalid={Boolean(formErrors.region)}
+                      disabled={cargandoRegiones}
+                      className={`rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-10 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300 appearance-none cursor-pointer ${
+                        formErrors.region ? 'border-[#B01010] focus:ring-[#B01010]' : ''
+                      }`}
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                        backgroundPosition: 'right 0.75rem center',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundSize: '1.5em 1.5em',
+                      }}
+                    >
+                      <option value="">{cargandoRegiones ? 'Cargando regiones...' : 'Selecciona una region'}</option>
+                      {regiones.map((region) => (
+                        <option key={region.codigo} value={region.codigo}>
+                          {region.nombre}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+                  {formErrors.region && <span className="text-xs text-[#B01010]">{formErrors.region}</span>}
+                </label>
+                <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
+                  Comuna *
+                  <div className="relative">
+                    <div className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${formErrors.comuna ? 'text-[#B01010]' : 'text-slate-400'}`}>
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                      </svg>
+                    </div>
+                    <select
+                      name="comuna"
+                      required
+                      value={comunaSeleccionada}
+                      onChange={(event) => handleComunaChange(event.target.value)}
+                      aria-invalid={Boolean(formErrors.comuna)}
+                      disabled={!regionSeleccionada || cargandoComunas}
+                      className={`rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-10 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300 appearance-none cursor-pointer ${
+                        formErrors.comuna ? 'border-[#B01010] focus:ring-[#B01010]' : ''
+                      }`}
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                        backgroundPosition: 'right 0.75rem center',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundSize: '1.5em 1.5em',
+                      }}
+                    >
+                      <option value="">
+                        {!regionSeleccionada
+                          ? 'Selecciona una region primero'
+                          : cargandoComunas
+                            ? 'Cargando comunas...'
+                            : 'Selecciona una comuna'}
+                      </option>
+                      {comunas.map((comuna) => (
+                        <option key={comuna.codigo} value={comuna.codigo}>
+                          {comuna.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {formErrors.comuna && <span className="text-xs text-[#B01010]">{formErrors.comuna}</span>}
                 </label>
               </div>
               {formErrors.contact && (
                 <p className="text-xs text-[#B01010]">{formErrors.contact}</p>
+              )}
+              {dpaError && (
+                <p className="text-xs text-[#B01010]">{dpaError}</p>
               )}
             </div>
 
@@ -750,6 +971,7 @@ const QuotePage = () => {
                                 observacion: event.target.value,
                               })
                             }
+                            maxLength={MAX_MESSAGE_LENGTH}
                             placeholder="Notas del item (opcional)"
                             className="rounded-2xl border border-slate-200 bg-white w-full px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040]"
                           />
@@ -773,13 +995,28 @@ const QuotePage = () => {
             </div>
 
             <label className="flex min-w-0 flex-col gap-2 text-sm font-semibold text-slate-700">
-              Mensaje
+              <div className="flex items-center justify-between">
+                <span>Mensaje</span>
+                <span className={`text-xs ${messageLength >= MAX_MESSAGE_LENGTH ? 'text-[#B01010]' : 'text-slate-400'}`}>
+                  {messageLength}/{MAX_MESSAGE_LENGTH}
+                </span>
+              </div>
               <textarea
                 name="message"
                 rows={4}
+                value={messageValue}
+                maxLength={MAX_MESSAGE_LENGTH}
+                onChange={(event) => {
+                  setMessageValue(event.target.value);
+                  clearFieldError('message');
+                  clearSubmitError();
+                }}
                 placeholder="Indica cantidades, plazos y forma de despacho."
-                className="rounded-2xl border border-slate-200 bg-white w-full px-4 py-3 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040]"
+                className={`rounded-2xl border border-slate-200 bg-white w-full px-4 py-3 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040] ${
+                  formErrors.message ? 'border-[#B01010] focus:ring-[#B01010]' : ''
+                }`}
               />
+              {formErrors.message && <span className="text-xs text-[#B01010]">{formErrors.message}</span>}
             </label>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

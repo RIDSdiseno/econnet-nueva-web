@@ -808,11 +808,13 @@ export type CotizacionContactoPayload = {
   email?: string | null;
   telefono?: string | null;
   empresa?: string | null;
-  rut?: string | null;
   direccion?: string | null;
   mensaje?: string | null;
   tipoObra?: string | null;
+  region?: string | null;
+  comuna?: string | null;
   ubicacion?: string | null;
+  rut?: string | null;
 };
 
 export type CotizacionItemPayload = {
@@ -858,6 +860,9 @@ export type CotizacionDetalle = {
   telefono?: string | null;
   empresa?: string | null;
   rut?: string | null;
+  region?: string | null;
+  comuna?: string | null;
+  direccion?: string | null;
   observaciones?: string | null;
   subtotalNeto: number;
   iva: number;
