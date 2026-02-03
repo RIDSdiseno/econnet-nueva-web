@@ -637,13 +637,13 @@ const ProductCard = ({
                 role="dialog"
                 aria-modal="true"
                 aria-label={`Seleccionar cantidad de ${product.name}`}
-                className="relative z-10 w-full max-w-md rounded-3xl border border-slate-200/50 bg-gradient-to-br from-white via-slate-50/95 to-white shadow-[0_40px_100px_rgba(0,0,0,0.45)] backdrop-blur-2xl overflow-hidden"
+                className="relative z-10 w-full max-w-lg rounded-3xl border border-slate-200/50 bg-gradient-to-br from-white via-slate-50/95 to-white shadow-[0_40px_100px_rgba(0,0,0,0.45)] backdrop-blur-2xl overflow-hidden"
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#E04040]/5 to-transparent rounded-full blur-3xl"></div>
 
-                <div className="relative p-6">
-                  <div className="flex items-start justify-between gap-4 mb-6">
+                <div className="relative p-8">
+                  <div className="flex items-start justify-between gap-4 mb-8">
                     <div className="space-y-1">
                       <p className="text-[0.6rem] uppercase tracking-[0.3em] text-[#B01010] font-bold">Cantidad</p>
                       <h3 className="font-display text-xl text-slate-900 leading-tight line-clamp-2">
@@ -711,15 +711,15 @@ const ProductCard = ({
                     </div>
                   )}
 
-                  <div className="flex items-center justify-center gap-4 mb-6">
+                  <div className="flex items-center justify-center gap-5 mb-8">
                     <button
                       type="button"
                       onClick={decrementQuantity}
                       disabled={quantity <= minQuantity}
-                      className="rounded-full border-2 border-slate-200 bg-white p-3 text-slate-600 transition-all hover:bg-slate-100 hover:border-[#E04040]/30 hover:text-[#B01010] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+                      className="rounded-full border-2 border-slate-200 bg-white p-4 text-slate-600 transition-all hover:bg-slate-100 hover:border-[#E04040]/30 hover:text-[#B01010] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 disabled:hover:text-slate-600"
                       aria-label="Disminuir cantidad"
                     >
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
                       </svg>
                     </button>
@@ -730,7 +730,7 @@ const ProductCard = ({
                       max={stockEfectivo ?? 9999}
                       value={quantity}
                       onChange={handleQuantityInputChange}
-                      className="w-24 rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-center text-2xl font-bold text-slate-900 focus:border-[#E04040] focus:outline-none focus:ring-2 focus:ring-[#E04040]/20 transition-all"
+                      className="w-32 rounded-xl border-2 border-slate-200 bg-white px-4 py-4 text-center text-3xl font-bold text-slate-900 focus:border-[#E04040] focus:outline-none focus:ring-2 focus:ring-[#E04040]/20 transition-all"
                       aria-label="Cantidad"
                     />
 
@@ -738,10 +738,10 @@ const ProductCard = ({
                       type="button"
                       onClick={incrementQuantity}
                       disabled={stockEfectivo !== null && quantity >= stockEfectivo}
-                      className="rounded-full border-2 border-slate-200 bg-white p-3 text-slate-600 transition-all hover:bg-slate-100 hover:border-[#E04040]/30 hover:text-[#B01010] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+                      className="rounded-full border-2 border-slate-200 bg-white p-4 text-slate-600 transition-all hover:bg-slate-100 hover:border-[#E04040]/30 hover:text-[#B01010] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 disabled:hover:text-slate-600"
                       aria-label="Aumentar cantidad"
                     >
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                       </svg>
                     </button>
