@@ -4,53 +4,53 @@ import { useProductos } from '../hooks/useProductos';
 
 const categories = [
   {
-    title: 'Obra gruesa',
-    description: 'Cemento, ladrillos, morteros y cal para estructuras sólidas.',
+    title: 'Insumos de obra',
+    description: 'Consumibles y suministros para faenas y montaje.',
     stat: '120+ SKU',
     accent: 'bg-[#F0E0E0] text-[#B01010]',
     icon: (
       <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
-        <rect x="3" y="6" width="8" height="4" rx="1" />
-        <rect x="13" y="6" width="8" height="4" rx="1" />
-        <rect x="3" y="13" width="8" height="4" rx="1" />
-        <rect x="13" y="13" width="8" height="4" rx="1" />
+        <rect x="4" y="7" width="16" height="10" rx="2" />
+        <path d="M9 7V5h6v2" />
+        <path d="M4 11h16" />
       </svg>
     ),
   },
   {
-    title: 'Áridos y hormigón',
-    description: 'Arena, gravilla y mezclas controladas para rendimiento estable.',
+    title: 'Moldajes y encofrados',
+    description: 'Soluciones de moldaje, accesorios y elementos de soporte.',
     stat: '60+ SKU',
     accent: 'bg-[#F7EAEA] text-[#C02020]',
     icon: (
       <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
-        <circle cx="7" cy="15" r="3" />
-        <circle cx="15" cy="16" r="3" />
-        <circle cx="12" cy="9" r="2.5" />
+        <rect x="4" y="4" width="16" height="16" rx="2" />
+        <path d="M4 9h16" />
+        <path d="M9 4v16" />
       </svg>
     ),
   },
   {
-    title: 'Fierro y mallas',
-    description: 'Refuerzo estructural, perfiles y mallas electrosoldadas.',
+    title: 'Carton, proteccion y embalaje',
+    description: 'Cartones, separadores, protecciones y materiales de embalaje.',
     stat: '80+ SKU',
     accent: 'bg-[#EFE6E6] text-[#A01010]',
     icon: (
       <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
-        <path d="M4 6h16M4 12h16M4 18h16" />
-        <path d="M8 6v12M16 6v12" />
+        <rect x="4" y="5" width="16" height="14" rx="2" />
+        <path d="M4 9h16" />
+        <path d="M12 5v14" />
       </svg>
     ),
   },
   {
-    title: 'Tabiquería y cielos',
-    description: 'Yeso-cartón, perfilería y soluciones de terminación.',
+    title: 'Accesorios y complementos',
+    description: 'Productos complementarios para instalacion, fijacion y operacion en obra.',
     stat: '90+ SKU',
     accent: 'bg-[#F5DADA] text-[#D03030]',
     icon: (
       <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
-        <rect x="5" y="4" width="14" height="16" rx="2" />
-        <path d="M9 4v16M15 4v16" />
+        <circle cx="12" cy="12" r="7" />
+        <path d="M12 9v6M9 12h6" />
       </svg>
     ),
   },
