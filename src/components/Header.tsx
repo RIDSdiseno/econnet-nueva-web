@@ -4,10 +4,13 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useQuoteHistory } from '../context/QuoteHistoryContext';
 import SearchModal from './SearchModal';
+import FloatingCartButton from './FloatingCartButton';
 import { covasaContact } from '../data/contact';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isHeaderHidden, setIsHeaderHidden] = useState(false);
   const { totalQuantity, items } = useCart();
   const { user, isAuthenticated, logout } = useAuth();
   const { quotes } = useQuoteHistory();
@@ -21,9 +24,11 @@ const Header = () => {
   const headerRef = useRef<HTMLElement | null>(null);
   const cartButtonDesktopRef = useRef<HTMLButtonElement | null>(null);
   const cartButtonMobileRef = useRef<HTMLButtonElement | null>(null);
+  const cartButtonFloatingRef = useRef<HTMLButtonElement | null>(null);
   const cartPopoverRef = useRef<HTMLDivElement | null>(null);
   const registroButtonRef = useRef<HTMLButtonElement | null>(null);
   const registroPopoverRef = useRef<HTMLDivElement | null>(null);
+  const lastScrollYRef = useRef(0);
   const desktopNavClass = ({ isActive }: { isActive: boolean }) =>
     `border-b-2 pb-1 transition ${
       isActive
@@ -78,6 +83,14 @@ const Header = () => {
     navigate('/login', { replace: true });
   };
 
+  const toggleCart = () => {
+    setIsCartOpen((prev) => !prev);
+    setIsMenuOpen(false);
+    setIsSearchOpen(false);
+    setIsRegistroOpen(false);
+    setIsLogoutOpen(false);
+  };
+
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
@@ -103,6 +116,72 @@ const Header = () => {
       window.localStorage.setItem('covasa_font_scale', 'normal');
     }
   }, [isLargeText]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    let ticking = false;
+
+    const updateScrollState = () => {
+      ticking = false;
+      const currentY = window.scrollY;
+      const lastY = lastScrollYRef.current;
+      const delta = currentY - lastY;
+      const nextScrolled = currentY > 40;
+
+      setIsScrolled((prev) => (prev !== nextScrolled ? nextScrolled : prev));
+      setIsHeaderHidden((prev) => {
+        let nextHidden = prev;
+        if (currentY < 10) {
+          nextHidden = false;
+        } else if (delta > 8 && currentY > 80) {
+          nextHidden = true;
+        } else if (delta < -8) {
+          nextHidden = false;
+        }
+        return nextHidden === prev ? prev : nextHidden;
+      });
+
+      lastScrollYRef.current = currentY;
+    };
+
+    const handleScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        window.requestAnimationFrame(updateScrollState);
+      }
+    };
+
+    lastScrollYRef.current = window.scrollY;
+    updateScrollState();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    setIsScrolled(window.scrollY > 40);
+    setIsHeaderHidden(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const root = window.document.documentElement;
+    root.style.setProperty(
+      '--site-header-offset',
+      isHeaderHidden ? '0px' : 'var(--site-header-height)'
+    );
+  }, [isHeaderHidden]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -150,6 +229,7 @@ const Header = () => {
       if (
         cartButtonDesktopRef.current?.contains(target) ||
         cartButtonMobileRef.current?.contains(target) ||
+        cartButtonFloatingRef.current?.contains(target) ||
         cartPopoverRef.current?.contains(target)
       ) {
         return;
@@ -222,8 +302,18 @@ const Header = () => {
   }, [isLogoutOpen]);
 
   return (
-    <header ref={headerRef} className="fixed top-0 left-0 right-0 z-50 shadow-lg">
-      <div className="bg-gradient-to-r from-[#1b0b0b] via-[#2a1515] to-[#1b0b0b] text-[#F0E0E0]">
+    <header
+      ref={headerRef}
+      className="fixed top-0 left-0 right-0 z-[70]"
+    >
+      <div
+        className={`transition-transform duration-300 shadow-lg ${
+          isHeaderHidden ? '-translate-y-full' : 'translate-y-0'
+        }`}
+      >
+        <div
+          className="bg-gradient-to-r from-[#1b0b0b] via-[#2a1515] to-[#1b0b0b] text-[#F0E0E0]"
+        >
         <div className="container mx-auto px-4">
           <div className="flex flex-col gap-2 py-2.5 text-[0.65rem] uppercase tracking-[0.2em] sm:flex-row sm:items-center sm:justify-between sm:tracking-[0.28em]">
             <div className="flex flex-wrap items-center gap-4">
@@ -303,7 +393,7 @@ const Header = () => {
         </div>
       </div>
 
-      <div className="bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
+        <div className="border-b bg-white/95 backdrop-blur-md border-slate-200/60 shadow-sm">
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-2 py-3 lg:py-4">
             <Link to="/" className="group flex items-center gap-3 lg:mr-2" aria-label="COVASA">
@@ -435,7 +525,7 @@ const Header = () => {
                 <button
                   ref={cartButtonDesktopRef}
                   type="button"
-                  onClick={() => setIsCartOpen((prev) => !prev)}
+                  onClick={toggleCart}
                   aria-expanded={isCartOpen}
                   aria-haspopup="dialog"
                   className={cartButtonClass(isCartActive)}
@@ -569,45 +659,56 @@ const Header = () => {
                   Buscar productos
                 </button>
               </div>
-
-              <div className="mt-4">
-                <button
-                  ref={cartButtonMobileRef}
-                  type="button"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    setIsCartOpen((prev) => !prev);
-                  }}
-                  aria-expanded={isCartOpen}
-                  aria-haspopup="dialog"
-                  className={`${cartButtonClass(isCartActive)} w-full justify-center`}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                    />
-                  </svg>
-                  <span>Carrito</span>
-                  {totalQuantity > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#E04040] text-[0.6rem] font-bold text-white">
-                      {totalQuantity}
-                    </span>
-                  )}
-                </button>
-              </div>
             </div>
           )}
         </div>
       </div>
+    </div>
+
+      <div
+        className={`pointer-events-none fixed bottom-[120px] right-6 z-[70] hidden md:block transition-all duration-300 ${
+          isScrolled ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+        }`}
+      >
+        <button
+          ref={cartButtonFloatingRef}
+          type="button"
+          onClick={toggleCart}
+          aria-label="Abrir carrito"
+          aria-expanded={isCartOpen}
+          aria-haspopup="dialog"
+          className="pointer-events-auto relative flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-[0_18px_40px_rgba(15,23,32,0.16)] transition hover:border-slate-300 hover:text-slate-900 hover:shadow-[0_22px_45px_rgba(15,23,32,0.2)] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E04040]/60"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+            />
+          </svg>
+          {totalQuantity > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#E04040] text-[0.65rem] font-bold text-white shadow-md ring-2 ring-white">
+              {totalQuantity}
+            </span>
+          )}
+        </button>
+      </div>
+
+      <FloatingCartButton
+        buttonRef={cartButtonMobileRef}
+        isActive={isCartActive}
+        isOpen={isCartOpen}
+        totalQuantity={totalQuantity}
+        onClick={toggleCart}
+      />
 
       {isCartOpen && (
         <div

@@ -3,7 +3,7 @@
 }
 
 .app-main {
-  padding-top: var(--site-header-height, 0px);
+  padding-top: var(--site-header-offset, var(--site-header-height, 0px));
 }
 
 .font-display {
