@@ -8,10 +8,10 @@ type RespuestaApi<T> = {
   details?: unknown;
 };
 
-export const API_BASE_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? 'https://covasabackecomerce-production.up.railway.app/api';
-
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const API_ORIGIN_ENV =
+  (import.meta.env.VITE_API_URL as string | undefined) ?? 'https://covasabackecomerce-production.up.railway.app';
+const API_ORIGIN = API_ORIGIN_ENV.replace(/\/api\/?$/, '').replace(/\/$/, '');
+export const API_BASE_URL = `${API_ORIGIN}/api`;
 
 // ==============================
 // Auth token helpers (JWT)
