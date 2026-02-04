@@ -4,8 +4,8 @@ import { useProductos } from '../hooks/useProductos';
 
 const categories = [
   {
-    title: 'Insumos de obra',
-    description: 'Consumibles y suministros para faenas y montaje.',
+    title: 'Accesorios fierro para moldaje',
+    description: 'Cabezales, cerrojo, grampas, chaveta, barras y tuercas para sistemas de moldaje.',
     stat: '120+ SKU',
     accent: 'bg-[#F0E0E0] text-[#B01010]',
     icon: (
@@ -17,8 +17,8 @@ const categories = [
     ),
   },
   {
-    title: 'Moldajes y encofrados',
-    description: 'Soluciones de moldaje, accesorios y elementos de soporte.',
+    title: 'Accesorios de andamios',
+    description: 'Abrazaderas giratorias, abrazaderas fijas, cañería 48 y cáncamos para montaje seguro.',
     stat: '60+ SKU',
     accent: 'bg-[#F7EAEA] text-[#C02020]',
     icon: (
@@ -30,8 +30,8 @@ const categories = [
     ),
   },
   {
-    title: 'Carton, proteccion y embalaje',
-    description: 'Cartones, separadores, protecciones y materiales de embalaje.',
+    title: 'Materiales auxiliares de construcción',
+    description: 'Cartón corrugado, polietileno y malla raschel para protección y soporte en obra.',
     stat: '80+ SKU',
     accent: 'bg-[#EFE6E6] text-[#A01010]',
     icon: (
@@ -43,8 +43,8 @@ const categories = [
     ),
   },
   {
-    title: 'Accesorios y complementos',
-    description: 'Productos complementarios para instalacion, fijacion y operacion en obra.',
+    title: 'Accesorios plásticos de moldaje',
+    description: 'Separadores, conos, muelas, torres, tapones y tubos de moldaje gris de 25 mm.',
     stat: '90+ SKU',
     accent: 'bg-[#F5DADA] text-[#D03030]',
     icon: (
@@ -223,9 +223,6 @@ const HomePage = () => {
               </div>
               <h3 className="mt-4 text-xl font-semibold text-slate-900">{category.title}</h3>
               <p className="mt-2 text-sm text-slate-600">{category.description}</p>
-              <button className="mt-6 text-sm font-semibold text-[#B01010] transition group-hover:text-[#D03030]">
-                Ver selección
-              </button>
             </div>
           ))}
         </div>
