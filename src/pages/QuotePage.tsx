@@ -42,6 +42,7 @@ type QuoteFormErrors = {
 const formatCurrency = (value: number) => `CLP ${value.toLocaleString('es-CL')}`;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_MESSAGE_LENGTH = 500;
+const DPA_ERROR_MESSAGE = 'No se pudo cargar regiones/comunas. Intenta nuevamente.';
 
 const normalizarTelefonoChile = (valor: string) => {
   const digits = valor.replace(/\D/g, '');
@@ -126,6 +127,8 @@ const QuotePage = () => {
   const [dpaError, setDpaError] = useState<string | null>(null);
   const [cargandoRegiones, setCargandoRegiones] = useState(false);
   const [cargandoComunas, setCargandoComunas] = useState(false);
+  const [retryRegionesTick, setRetryRegionesTick] = useState(0);
+  const [retryComunasTick, setRetryComunasTick] = useState(0);
   const [messageValue, setMessageValue] = useState('');
   const totalNet = items.reduce((acc, item) => acc + item.cantidad * item.precioUnitario, 0);
   const canAddItem = Boolean(selectedProductId) && !submitting;
@@ -172,7 +175,8 @@ const QuotePage = () => {
         if (!active) {
           return;
         }
-        setDpaError('No se pudieron cargar las regiones. Intenta nuevamente.');
+        setRegiones([]);
+        setDpaError(DPA_ERROR_MESSAGE);
       })
       .finally(() => {
         if (!active) {
@@ -184,7 +188,7 @@ const QuotePage = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [retryRegionesTick]);
 
   useEffect(() => {
     if (!regionSeleccionada) {
@@ -208,7 +212,7 @@ const QuotePage = () => {
           return;
         }
         setComunas([]);
-        setDpaError('No se pudieron cargar las comunas. Intenta nuevamente.');
+        setDpaError(DPA_ERROR_MESSAGE);
       })
       .finally(() => {
         if (!active) {
@@ -220,7 +224,7 @@ const QuotePage = () => {
     return () => {
       active = false;
     };
-  }, [regionSeleccionada]);
+  }, [regionSeleccionada, retryComunasTick]);
 
   useEffect(() => {
     if (!successOpen) {
@@ -251,6 +255,7 @@ const QuotePage = () => {
   const handleRegionChange = (value: string) => {
     setRegionSeleccionada(value);
     setComunaSeleccionada('');
+    setDpaError(null);
     clearFieldError('region');
     clearFieldError('comuna');
     clearSubmitError();
@@ -258,6 +263,7 @@ const QuotePage = () => {
 
   const handleComunaChange = (value: string) => {
     setComunaSeleccionada(value);
+    setDpaError(null);
     clearFieldError('comuna');
     clearSubmitError();
   };
@@ -338,8 +344,8 @@ const QuotePage = () => {
     const telefono = String(formData.get('phone') ?? '').trim();
     const direccion = String(formData.get('address') ?? '').trim();
     const tipoObra = String(formData.get('projectType') ?? '').trim();
-    const regionCodigo = regionSeleccionada;
-    const comunaCodigo = comunaSeleccionada;
+    const regionNombre = regionSeleccionada.trim();
+    const comunaNombre = comunaSeleccionada.trim();
     const mensaje = messageValue.trim();
 
     const nextErrors: QuoteFormErrors = {};
@@ -366,11 +372,11 @@ const QuotePage = () => {
       nextErrors.contact = 'Debes ingresar al menos un email o telefono.';
     }
 
-    if (!regionCodigo) {
+    if (!regionNombre) {
       nextErrors.region = 'Selecciona una region.';
     }
 
-    if (regionCodigo && !comunaCodigo) {
+    if (regionNombre && !comunaNombre) {
       nextErrors.comuna = 'Selecciona una comuna.';
     }
 
@@ -413,10 +419,6 @@ const QuotePage = () => {
     try {
       const telefonoEnvio =
         telefonoNormalizado.isValid && !telefonoNormalizado.isEmpty ? telefonoNormalizado.normalized : null;
-      const regionSeleccion = regiones.find((region) => region.codigo === regionCodigo);
-      const comunaSeleccion = comunas.find((comuna) => comuna.codigo === comunaCodigo);
-      const regionNombre = regionSeleccion?.nombre ?? null;
-      const comunaNombre = comunaSeleccion?.nombre ?? null;
 
       const idempotencyKey =
         idempotencyKeyRef.current ??
@@ -435,8 +437,8 @@ const QuotePage = () => {
           direccion: direccion || null,
           mensaje: mensaje || null,
           tipoObra: tipoObra || null,
-          region: regionNombre,
-          comuna: comunaNombre,
+          region: regionNombre || null,
+          comuna: comunaNombre || null,
         },
         items: items.map((item) => ({
           productoId: item.productoId,
@@ -752,8 +754,8 @@ const QuotePage = () => {
                     >
                       <option value="">{cargandoRegiones ? 'Cargando regiones...' : 'Selecciona una region'}</option>
                       {regiones.map((region) => (
-                        <option key={region.codigo} value={region.codigo}>
-                          {region.nombre}
+                        <option key={region} value={region}>
+                          {region}
                         </option>
                       ))}
                     </select>
@@ -793,8 +795,8 @@ const QuotePage = () => {
                             : 'Selecciona una comuna'}
                       </option>
                       {comunas.map((comuna) => (
-                        <option key={comuna.codigo} value={comuna.codigo}>
-                          {comuna.nombre}
+                        <option key={comuna} value={comuna}>
+                          {comuna}
                         </option>
                       ))}
                     </select>
@@ -806,7 +808,23 @@ const QuotePage = () => {
                 <p className="text-xs text-[#B01010]">{formErrors.contact}</p>
               )}
               {dpaError && (
-                <p className="text-xs text-[#B01010]">{dpaError}</p>
+                <div className="flex items-center gap-3">
+                  <p className="text-xs text-[#B01010]">{dpaError}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDpaError(null);
+                      if (regionSeleccionada) {
+                        setRetryComunasTick((value) => value + 1);
+                        return;
+                      }
+                      setRetryRegionesTick((value) => value + 1);
+                    }}
+                    className="text-xs font-semibold text-[#B01010] underline underline-offset-2 transition hover:text-[#D03030]"
+                  >
+                    Reintentar
+                  </button>
+                </div>
               )}
             </div>
 

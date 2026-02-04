@@ -1,18 +1,14 @@
 import { uiLogger } from '../utils/logger';
 import { API_BASE_URL } from './api';
 
-export type DpaSector = {
-  codigo: string;
-  nombre: string;
-  tipo?: string;
-  codigo_padre?: string | null;
-  lat?: string | null;
-  lng?: string | null;
-  url?: string | null;
-};
+export type DpaRegion = string;
+export type DpaComuna = string;
 
-export type DpaRegion = DpaSector;
-export type DpaComuna = DpaSector;
+type ApiResponse<T> = {
+  ok: boolean;
+  data?: T;
+  message?: string;
+};
 
 type CacheEntry<T> = {
   expiresAt: number;
@@ -26,8 +22,9 @@ type MemoryEntry<T> = {
 };
 
 const DPA_BASE_URL = `${API_BASE_URL}/dpa`;
-const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
-const STORAGE_PREFIX = 'covasa_dpa_cache_v1';
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
+const STORAGE_PREFIX = 'covasa_dpa_cache_v2';
+const DEFAULT_ERROR_MESSAGE = 'No se pudo cargar regiones/comunas. Intenta nuevamente.';
 const memoryCache = new Map<string, MemoryEntry<unknown>>();
 
 const storageKey = (key: string) => `${STORAGE_PREFIX}:${key}`;
@@ -74,12 +71,35 @@ const writeStorage = <T>(key: string, entry: CacheEntry<T>) => {
   }
 };
 
-const fetchJson = async <T>(url: string): Promise<T> => {
-  const response = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!response.ok) {
-    throw new Error('No se pudo obtener datos de la DPA');
+const normalizeStringList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
   }
-  return response.json() as Promise<T>;
+
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  value.forEach((item) => {
+    const normalized = String(item ?? '').trim();
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    result.push(normalized);
+  });
+
+  return result;
+};
+
+const fetchStringList = async (url: string): Promise<string[]> => {
+  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  const payload = (await response.json().catch(() => null)) as ApiResponse<unknown> | null;
+
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.message?.trim() || DEFAULT_ERROR_MESSAGE);
+  }
+
+  return normalizeStringList(payload.data);
 };
 
 const fetchWithCache = async <T>(key: string, fetcher: () => Promise<T>): Promise<T> => {
@@ -116,86 +136,18 @@ const fetchWithCache = async <T>(key: string, fetcher: () => Promise<T>): Promis
   return promise;
 };
 
-const normalizeSector = (sector: Record<string, unknown>): DpaSector | null => {
-  const codigo = String(sector.codigo ?? sector.code ?? sector.id ?? '').trim();
-  const nombre = String(sector.nombre ?? sector.name ?? '').trim();
-
-  if (!codigo || !nombre) {
-    return null;
-  }
-
-  return {
-    codigo,
-    nombre,
-    tipo: (sector.tipo ?? sector.type ?? undefined) as string | undefined,
-    codigo_padre: (sector.codigo_padre ?? sector.codigoPadre ?? null) as string | null,
-    lat: (sector.lat ?? sector.latitude ?? null) as string | null,
-    lng: (sector.lng ?? sector.longitude ?? null) as string | null,
-    url: (sector.url ?? null) as string | null,
-  };
-};
-
-const normalizeSectorList = (data: unknown): DpaSector[] => {
-  if (!Array.isArray(data)) {
-    return [];
-  }
-
-  return data
-    .map((item) => (item && typeof item === 'object' ? normalizeSector(item as Record<string, unknown>) : null))
-    .filter((item): item is DpaSector => Boolean(item));
-};
-
-const sortByNombre = (a: DpaSector, b: DpaSector) => a.nombre.localeCompare(b.nombre, 'es');
-
-const resolveRegionCodigo = async (regionCodeOrName: string) => {
-  const trimmed = regionCodeOrName.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const regiones = await getRegiones();
-  const byCode = regiones.find((region) => region.codigo === trimmed);
-  if (byCode) {
-    return byCode.codigo;
-  }
-
-  const normalized = trimmed.toLowerCase();
-  const byName = regiones.find((region) => region.nombre.toLowerCase() === normalized);
-  if (byName) {
-    return byName.codigo;
-  }
-
-  const fuzzy = regiones.find((region) => region.nombre.toLowerCase().includes(normalized));
-  return fuzzy?.codigo ?? null;
-};
-
 export const getRegiones = async (): Promise<DpaRegion[]> => {
-  return fetchWithCache('regiones', async () => {
-    const data = await fetchJson<unknown>(`${DPA_BASE_URL}/regiones`);
-    return normalizeSectorList(data).sort(sortByNombre);
-  });
+  return fetchWithCache('regiones', async () => fetchStringList(`${DPA_BASE_URL}/regiones`));
 };
 
-export const getComunasByRegion = async (regionCodeOrName: string): Promise<DpaComuna[]> => {
-  const codigoRegion = await resolveRegionCodigo(regionCodeOrName);
-  if (!codigoRegion) {
+export const getComunasByRegion = async (regionName: string): Promise<DpaComuna[]> => {
+  const region = regionName.trim();
+  if (!region) {
     return [];
   }
 
-  const cacheKey = `comunas:${codigoRegion}`;
-
-  return fetchWithCache(cacheKey, async () => {
-    try {
-      const data = await fetchJson<unknown>(`${DPA_BASE_URL}/regiones/${codigoRegion}/comunas`);
-      return normalizeSectorList(data).sort(sortByNombre);
-    } catch (error) {
-      uiLogger.warn('dpa_comunas_endpoint_failed', { region: codigoRegion, error });
-      const data = await fetchJson<unknown>(`${DPA_BASE_URL}/comunas`);
-      const comunas = normalizeSectorList(data);
-      const prefix = codigoRegion.padStart(2, '0');
-      return comunas
-        .filter((comuna) => comuna.codigo.startsWith(prefix))
-        .sort(sortByNombre);
-    }
-  });
+  const cacheKey = `comunas:${region.toLowerCase()}`;
+  return fetchWithCache(cacheKey, async () =>
+    fetchStringList(`${DPA_BASE_URL}/comunas?region=${encodeURIComponent(region)}`)
+  );
 };
