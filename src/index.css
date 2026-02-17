@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: light;
-  --ink: #1f0b0b;
-  --steel: #2a0d0d;
-  --sand: #f7f3f3;
-  --clay: #c02020;
-  --clay-deep: #b01010;
-  --sun: #e04040;
+  color-scheme: dark;
+  --ink: #050505;       
+  --steel: #1a1a1a;     
+  --sand: #fafafa;      
+  --gold: #C5A059;      
+  --gold-deep: #A6823E; 
+  --glass: rgba(255, 255, 255, 0.03);
 }
 
 html {
@@ -25,52 +25,16 @@ body {
   min-height: 100vh;
   margin: 0;
   overflow-x: hidden;
-  background-color: var(--sand);
-  color: var(--ink);
-  font-family: "Sora", sans-serif;
-  font-weight: 400;
-  line-height: 1.65;
-  letter-spacing: 0.01em;
+  background-color: #000000;
+  color: var(--sand);
+  font-family: "Inter", "Sora", sans-serif;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   isolation: isolate;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  background-image:
-    url("/fondo/fondo_covasa.png"),
-    radial-gradient(circle at top right, rgba(224, 64, 64, 0.08), transparent 45%),
-    radial-gradient(circle at 10% 20%, rgba(176, 16, 16, 0.08), transparent 40%);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: blur(18px);
-  transform: scale(1.06);
-  transform-origin: center;
-  opacity: 0.85;
-  pointer-events: none;
-  animation: ambientShift 28s ease-in-out infinite;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  body::before {
-    animation: none;
-  }
-}
-
-@keyframes ambientShift {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1.06);
-    opacity: 0.82;
-  }
-  50% {
-    transform: translate3d(-1.8%, 1.2%, 0) scale(1.09);
-    opacity: 0.95;
+  html {
+    scroll-behavior: auto;
   }
 }

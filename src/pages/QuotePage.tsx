@@ -1,1115 +1,179 @@
-import { useEffect, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import type { Product } from '../data/products';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useProductos } from '../hooks/useProductos';
 import { crearCotizacion } from '../services/api';
-import { getComunasByRegion, getRegiones, type DpaComuna, type DpaRegion } from '../services/dpaService';
+import { getRegiones, getComunasByRegion } from '../services/dpaService';
 import ModalSuccessCotizacion from '../components/ModalSuccessCotizacion';
-import { useQuoteHistory } from '../context/QuoteHistoryContext';
 import { useAuth } from '../context/AuthContext';
 
-type QuoteItem = {
-  id: string;
-  productoId: string;
-  skuSnapshot?: string;
-  nombreSnapshot: string;
-  unidadSnapshot: string;
-  cantidad: number;
-  precioUnitario: number;
-  observacion?: string;
-};
-
-type QuoteResult = {
-  id: string;
-  codigo: string;
-  total: number;
-  estado: string;
-  createdAt?: string | null;
-};
-
-type QuoteFormErrors = {
-  name?: string;
-  email?: string;
-  phone?: string;
-  region?: string;
-  comuna?: string;
-  message?: string;
-  contact?: string;
-  items?: string;
-};
-
 const formatCurrency = (value: number) => `CLP ${value.toLocaleString('es-CL')}`;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MAX_MESSAGE_LENGTH = 500;
-const DPA_ERROR_MESSAGE = 'No se pudo cargar regiones/comunas. Intenta nuevamente.';
-
-const normalizarTelefonoChile = (valor: string) => {
-  const digits = valor.replace(/\D/g, '');
-  if (!digits) {
-    return { normalized: '', isValid: true, isEmpty: true };
-  }
-
-  let local = digits;
-  if (local.startsWith('56')) {
-    local = local.slice(2);
-  }
-
-  if (local.length !== 9 || !local.startsWith('9')) {
-    return { normalized: '', isValid: false, isEmpty: false };
-  }
-
-  return { normalized: `+56${local}`, isValid: true, isEmpty: false };
-};
-
-const createItem = (product: Product): QuoteItem => ({
-  id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-  productoId: product.id,
-  skuSnapshot: product.sku,
-  nombreSnapshot: product.name,
-  unidadSnapshot: product.unit,
-  cantidad: 1,
-  precioUnitario: product.price,
-  observacion: '',
-});
-
-const leerUtm = () => {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  const params = new URLSearchParams(window.location.search);
-  const keys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
-  const utm: Record<string, string> = {};
-
-  keys.forEach((key) => {
-    const value = params.get(key);
-    if (value) {
-      utm[key] = value;
-    }
-  });
-
-  return Object.keys(utm).length > 0 ? utm : null;
-};
-
-const detalleUrlTemplate = (import.meta.env as Record<string, string | undefined>)[
-  'VITE_COTIZACION_DETALLE_URL'
-];
-const defaultDetalleUrlTemplate = '/mis-cotizaciones/:id';
-
-const buildDetalleUrl = (resultado: QuoteResult) => {
-  const template = detalleUrlTemplate ?? defaultDetalleUrlTemplate;
-  return template.replace(':id', resultado.id).replace(':codigo', resultado.codigo || resultado.id);
-};
 
 const QuotePage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
-  const { upsertQuote } = useQuoteHistory();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const { productos, cargando, error: catalogoError } = useProductos({ search: searchQuery, limit: 200 });
-  const [submitted, setSubmitted] = useState<QuoteResult | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const { productos, cargando } = useProductos({ search: searchQuery, limit: 100 });
+  
+  const [items, setItems] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const submittingRef = useRef(false);
-  const idempotencyKeyRef = useRef<string | null>(null);
-  const [formErrors, setFormErrors] = useState<QuoteFormErrors>({});
   const [successOpen, setSuccessOpen] = useState(false);
-  const [successStage, setSuccessStage] = useState<'confirming' | 'confirmed'>('confirming');
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [items, setItems] = useState<QuoteItem[]>([]);
-  const [selectedProductId, setSelectedProductId] = useState('');
-  const [regiones, setRegiones] = useState<DpaRegion[]>([]);
-  const [comunas, setComunas] = useState<DpaComuna[]>([]);
+  const [submittedData, setSubmittedData] = useState<any>(null);
+
+  const [regiones, setRegiones] = useState<string[]>([]);
+  const [comunas, setComunas] = useState<string[]>([]);
   const [regionSeleccionada, setRegionSeleccionada] = useState('');
-  const [comunaSeleccionada, setComunaSeleccionada] = useState('');
-  const [dpaError, setDpaError] = useState<string | null>(null);
-  const [cargandoRegiones, setCargandoRegiones] = useState(false);
-  const [cargandoComunas, setCargandoComunas] = useState(false);
-  const [retryRegionesTick, setRetryRegionesTick] = useState(0);
-  const [retryComunasTick, setRetryComunasTick] = useState(0);
-  const [messageValue, setMessageValue] = useState('');
-  const totalNet = items.reduce((acc, item) => acc + item.cantidad * item.precioUnitario, 0);
-  const canAddItem = Boolean(selectedProductId) && !submitting;
-  const isSubmitDisabled = items.length === 0 || submitting;
-  const hasContactError = Boolean(formErrors.contact);
-  const messageLength = messageValue.length;
-  const detalleUrl = submitted ? buildDetalleUrl(submitted) : null;
 
-  const handleCloseSuccess = () => setSuccessOpen(false);
-
-  const handleViewSuccess = () => {
-    if (!detalleUrl) {
-      return;
-    }
-
-    setSuccessOpen(false);
-    if (/^https?:\/\//i.test(detalleUrl)) {
-      window.location.assign(detalleUrl);
-      return;
-    }
-    navigate(detalleUrl);
-  };
-
+  // Sincronización de búsqueda (Debounce)
   useEffect(() => {
-    const handle = setTimeout(() => {
-      setSearchQuery(searchTerm.trim());
-    }, 250);
-
-    return () => clearTimeout(handle);
+    const timer = setTimeout(() => setSearchQuery(searchTerm.trim()), 300);
+    return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  // Carga de regiones (DPA)
   useEffect(() => {
-    let active = true;
-    setCargandoRegiones(true);
-    getRegiones()
-      .then((data) => {
-        if (!active) {
-          return;
-        }
-        setRegiones(data);
-        setDpaError(null);
-      })
-      .catch(() => {
-        if (!active) {
-          return;
-        }
-        setRegiones([]);
-        setDpaError(DPA_ERROR_MESSAGE);
-      })
-      .finally(() => {
-        if (!active) {
-          return;
-        }
-        setCargandoRegiones(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [retryRegionesTick]);
+    getRegiones().then(setRegiones);
+  }, []);
 
   useEffect(() => {
-    if (!regionSeleccionada) {
-      setComunas([]);
-      setComunaSeleccionada('');
-      return;
-    }
+    if (regionSeleccionada) getComunasByRegion(regionSeleccionada).then(setComunas);
+  }, [regionSeleccionada]);
 
-    let active = true;
-    setCargandoComunas(true);
-    getComunasByRegion(regionSeleccionada)
-      .then((data) => {
-        if (!active) {
-          return;
-        }
-        setComunas(data);
-        setDpaError(null);
-      })
-      .catch(() => {
-        if (!active) {
-          return;
-        }
-        setComunas([]);
-        setDpaError(DPA_ERROR_MESSAGE);
-      })
-      .finally(() => {
-        if (!active) {
-          return;
-        }
-        setCargandoComunas(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [regionSeleccionada, retryComunasTick]);
-
-  useEffect(() => {
-    if (!successOpen) {
-      return;
-    }
-
-    setSuccessStage('confirming');
-    const timer = setTimeout(() => setSuccessStage('confirmed'), 700);
-
-    return () => clearTimeout(timer);
-  }, [successOpen]);
-
-  const clearFieldError = (key: keyof QuoteFormErrors) => {
-    setFormErrors((prev) => {
-      if (!prev[key]) {
-        return prev;
-      }
-      return { ...prev, [key]: undefined };
-    });
+  const handleAddItem = (product: any) => {
+    setItems(prev => [...prev, { ...product, cantidad: 1, productold: product.id }]);
   };
 
-  const clearSubmitError = () => {
-    if (submitError) {
-      setSubmitError(null);
-    }
-  };
-
-  const handleRegionChange = (value: string) => {
-    setRegionSeleccionada(value);
-    setComunaSeleccionada('');
-    setDpaError(null);
-    clearFieldError('region');
-    clearFieldError('comuna');
-    clearSubmitError();
-  };
-
-  const handleComunaChange = (value: string) => {
-    setComunaSeleccionada(value);
-    setDpaError(null);
-    clearFieldError('comuna');
-    clearSubmitError();
-  };
-
-  const handleItemChange = (id: string, updates: Partial<QuoteItem>) => {
-    clearFieldError('items');
-    clearSubmitError();
-    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)));
-  };
-
-  const handleProductChange = (id: string, productId: string) => {
-    const product = productos.find((entry) => entry.id === productId);
-    if (!product) {
-      handleItemChange(id, {
-        productoId: productId,
-        nombreSnapshot: '',
-        unidadSnapshot: '',
-        precioUnitario: 0,
-        skuSnapshot: undefined,
-      });
-      return;
-    }
-    handleItemChange(id, {
-      productoId: product.id,
-      nombreSnapshot: product.name,
-      unidadSnapshot: product.unit,
-      precioUnitario: product.price,
-      skuSnapshot: product.sku,
-    });
-  };
-
-  const handleAddItem = () => {
-    if (!selectedProductId) {
-      return;
-    }
-
-    const product = productos.find((entry) => entry.id === selectedProductId);
-    if (!product) {
-      return;
-    }
-
-    clearFieldError('items');
-    clearSubmitError();
-
-    setItems((prev) => {
-      const existing = prev.find((item) => item.productoId === product.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.productoId === product.id ? { ...item, cantidad: item.cantidad + 1 } : item,
-        );
-      }
-      return [...prev, createItem(product)];
-    });
-  };
-
-  const handleRemoveItem = (id: string) => {
-    clearFieldError('items');
-    clearSubmitError();
-    setItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!isAuthenticated) {
-      setSubmitError('Debes iniciar sesion para enviar una cotizacion.');
-      setShowLoginModal(true);
-      return;
-    }
-    if (submitting || submittingRef.current) {
-      return;
-    }
-
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const nombre = String(formData.get('name') ?? '').trim();
-    const empresa = String(formData.get('company') ?? '').trim();
-    const email = String(formData.get('email') ?? '').trim();
-    const telefono = String(formData.get('phone') ?? '').trim();
-    const direccion = String(formData.get('address') ?? '').trim();
-    const tipoObra = String(formData.get('projectType') ?? '').trim();
-    const regionNombre = regionSeleccionada.trim();
-    const comunaNombre = comunaSeleccionada.trim();
-    const mensaje = messageValue.trim();
-
-    const nextErrors: QuoteFormErrors = {};
-
-    if (!nombre) {
-      nextErrors.name = 'El nombre es obligatorio.';
-    } else if (nombre.length > 200) {
-      nextErrors.name = 'El nombre no puede superar los 200 caracteres.';
-    }
-
-    const telefonoNormalizado = normalizarTelefonoChile(telefono);
-
-    if (email && !EMAIL_REGEX.test(email)) {
-      nextErrors.email = 'Ingresa un email valido (ej: correo@empresa.cl).';
-    } else if (email && email.length > 200) {
-      nextErrors.email = 'El email no puede superar los 200 caracteres.';
-    }
-
-    if (telefono && !telefonoNormalizado.isValid) {
-      nextErrors.phone = 'Ingresa un telefono valido (9XXXXXXXX o +569XXXXXXXX).';
-    }
-
-    if (!email && (!telefonoNormalizado.normalized || telefonoNormalizado.isEmpty)) {
-      nextErrors.contact = 'Debes ingresar al menos un email o telefono.';
-    }
-
-    if (!regionNombre) {
-      nextErrors.region = 'Selecciona una region.';
-    }
-
-    if (regionNombre && !comunaNombre) {
-      nextErrors.comuna = 'Selecciona una comuna.';
-    }
-
-    if (mensaje.length > MAX_MESSAGE_LENGTH) {
-      nextErrors.message = 'El mensaje no puede superar los 500 caracteres.';
-    }
-
-    if (items.length === 0) {
-      nextErrors.items = 'Agrega al menos un item.';
-    } else {
-      const itemSinProducto = items.find((item) => !item.productoId);
-      if (itemSinProducto) {
-        nextErrors.items = 'Selecciona un producto para cada item.';
-      }
-      const itemCantidadInvalida = items.find((item) => item.cantidad < 1);
-      if (!nextErrors.items && itemCantidadInvalida) {
-        nextErrors.items = 'La cantidad minima es 1.';
-      }
-      const itemObservacionLarga = items.find(
-        (item) => (item.observacion?.trim().length ?? 0) > MAX_MESSAGE_LENGTH,
-      );
-      if (!nextErrors.items && itemObservacionLarga) {
-        nextErrors.items = 'La observacion del item no puede superar los 500 caracteres.';
-      }
-    }
-
-    if (Object.keys(nextErrors).length > 0) {
-      setFormErrors(nextErrors);
-      setSubmitError('Revisa los campos marcados.');
-      return;
-    }
-
-    setFormErrors({});
-    submittingRef.current = true;
-    setSubmitting(true);
-    setSubmitError(null);
-    setSubmitted(null);
-    setSuccessOpen(false);
-
-    try {
-      const telefonoEnvio =
-        telefonoNormalizado.isValid && !telefonoNormalizado.isEmpty ? telefonoNormalizado.normalized : null;
-
-      const idempotencyKey =
-        idempotencyKeyRef.current ??
-        (typeof crypto !== 'undefined' && 'randomUUID' in crypto
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
-      idempotencyKeyRef.current = idempotencyKey;
-
-      const resultado = await crearCotizacion({
-        ecommerceClienteId: user?.ecommerceClienteId ?? undefined,
-        contacto: {
-          nombre,
-          email: email || null,
-          telefono: telefonoEnvio,
-          empresa: empresa || null,
-          direccion: direccion || null,
-          mensaje: mensaje || null,
-          tipoObra: tipoObra || null,
-          region: regionNombre || null,
-          comuna: comunaNombre || null,
-        },
-        items: items.map((item) => ({
-          productoId: item.productoId,
-          cantidad: item.cantidad,
-          observacion: item.observacion?.trim() ? item.observacion.trim() : null,
-        })),
-        origen: 'ECOMMERCE',
-        metadata: {
-          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
-          utm: leerUtm(),
-        },
-      }, { idempotencyKey });
-
-      const createdAt = resultado.createdAt ?? new Date().toISOString();
-      setSubmitted({ ...resultado, createdAt });
-      upsertQuote({
-        id: resultado.id,
-        ownerId: user?.id ?? null,
-        codigo: resultado.codigo,
-        total: resultado.total,
-        estado: resultado.estado,
-        createdAt,
-        nombreContacto: nombre,
-        itemsCount: items.length,
-      });
-      setSuccessOpen(true);
-      setItems([]);
-      setSelectedProductId('');
-      setSearchTerm('');
-      setSearchQuery('');
-      setRegionSeleccionada('');
-      setComunaSeleccionada('');
-      setMessageValue('');
-      form.reset();
-    } catch (err) {
-      const mensajeError = err instanceof Error ? err.message : 'No se pudo enviar la cotizacion.';
-      setSubmitError(mensajeError);
-
-      const details = (err as { details?: { fieldErrors?: Record<string, string[]> } }).details;
-      if (details?.fieldErrors) {
-        const backendErrors: QuoteFormErrors = {};
-        const fe = details.fieldErrors;
-        if (fe['contacto.nombre'] || fe['nombre']) {
-          backendErrors.name = (fe['contacto.nombre'] ?? fe['nombre'])?.[0];
-        }
-        if (fe['contacto.email'] || fe['email']) {
-          backendErrors.email = (fe['contacto.email'] ?? fe['email'])?.[0];
-        }
-        if (fe['contacto.telefono'] || fe['telefono']) {
-          backendErrors.phone = (fe['contacto.telefono'] ?? fe['telefono'])?.[0];
-        }
-        if (fe['contacto.region'] || fe['region']) {
-          backendErrors.region = (fe['contacto.region'] ?? fe['region'])?.[0];
-        }
-        if (fe['contacto.comuna'] || fe['comuna']) {
-          backendErrors.comuna = (fe['contacto.comuna'] ?? fe['comuna'])?.[0];
-        }
-        if (fe['contacto.mensaje'] || fe['mensaje']) {
-          backendErrors.message = (fe['contacto.mensaje'] ?? fe['mensaje'])?.[0];
-        }
-        if (fe['items']) {
-          backendErrors.items = fe['items'][0];
-        }
-        if (Object.keys(backendErrors).length > 0) {
-          setFormErrors(backendErrors);
-        }
-      }
-    } finally {
-      submittingRef.current = false;
-      idempotencyKeyRef.current = null;
-      setSubmitting(false);
-    }
-  };
+  const totalNeto = items.reduce((acc, item) => acc + (item.price * item.cantidad), 0);
 
   return (
-    <div className="space-y-10 pb-20">
-      <section className="container mx-auto px-4 pt-12">
-        <div className="relative overflow-hidden rounded-3xl bg-[#1b0b0b] p-8 text-white lg:p-12">
-          <div className="absolute inset-0 hero-grid opacity-10"></div>
-          <div className="relative space-y-4">
-            <p className="text-xs uppercase tracking-[0.32em] text-[#E04040]">Cotizacion</p>
-            <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl">Cotiza materiales para tu obra</h1>
-            <p className="max-w-2xl text-sm text-white/75">
-              En Covasa Chile coordinamos stock, despacho y asesoria tecnica para proyectos de construccion. Envia tu
-              solicitud y un ejecutivo se contactara contigo.
+    <div className="min-h-screen bg-black text-white pt-32 pb-40 font-inter">
+      <section className="container mx-auto px-6 max-w-6xl">
+        
+        {/* HEADER PREMIUM */}
+        <div className="relative overflow-hidden rounded-[3rem] border border-white/10 bg-white/[0.02] p-10 md:p-16 mb-16 shadow-2xl backdrop-blur-md">
+          <div className="absolute -top-24 -left-24 w-96 h-96 bg-gold/5 rounded-full blur-[100px]"></div>
+          <div className="relative space-y-6 max-w-3xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-gold/30 bg-gold/5 text-[10px] uppercase tracking-[0.5em] text-gold font-bold">
+              Configurador B2B
+            </div>
+            <h1 className="text-5xl md:text-7xl font-light tracking-tight italic">Diseña tu <span className="text-gold font-normal">Propuesta.</span></h1>
+            <p className="text-white/40 font-light text-lg leading-relaxed">
+              Define los parámetros de tu proyecto tecnológico y recibe una propuesta técnica personalizada en menos de 24 horas.
             </p>
           </div>
         </div>
-      </section>
 
-      <section className="container mx-auto px-4">
-        <div className="mx-auto w-full">
-          <form
-            className="space-y-8 w-full min-w-0 rounded-3xl border border-[#F0E0E0] bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,32,0.08)] sm:p-8"
-            onSubmit={handleSubmit}
-            aria-busy={submitting}
-          >
-            {!isAuthenticated && (
-              <div
-                role="alert"
-                className="rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-3 text-sm text-[#B01010]"
-              >
-                Debes iniciar sesion para enviar una cotizacion.
-                <button
-                  type="button"
-                  onClick={() => setShowLoginModal(true)}
-                  className="ml-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] underline underline-offset-4"
-                >
-                  Iniciar sesion
-                </button>
-              </div>
-            )}
-            <div className="relative overflow-hidden rounded-2xl bg-[#1b0b0b] px-5 py-5 text-white shadow-[0_18px_40px_rgba(10,0,0,0.28)] sm:px-6 sm:py-6">
-              <div className="absolute inset-0 hero-grid opacity-10"></div>
-              <div className="relative space-y-2">
-                <p className="text-[0.65rem] uppercase tracking-[0.32em] text-[#E04040]">Formulario</p>
-                <h2 className="text-2xl font-semibold">Datos para tu cotizacion</h2>
-                <p className="text-sm text-white/75">
-                  Completa la informacion y responderemos con precio, disponibilidad y tiempos de despacho.
-                </p>
-              </div>
-            </div>
+        {!isAuthenticated && (
+          <div className="mb-12 p-8 rounded-[2rem] border border-gold/20 bg-gold/5 flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-md">
+            <p className="text-sm font-light text-gold tracking-wide">Para procesar configuraciones oficiales, se requiere validación de identidad.</p>
+            <Link to="/login" className="px-10 py-4 rounded-full bg-gold text-black font-bold text-[10px] tracking-widest hover:bg-white transition-all duration-500">
+              IDENTIFICARSE
+            </Link>
+          </div>
+        )}
 
-            {submitError && (
-              <div
-                role="alert"
-                className="rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-3 text-sm text-[#B01010]"
-              >
-                {submitError}
-              </div>
-            )}
-
-            {catalogoError && (
-              <div className="rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-3 text-sm text-[#B01010]">
-                {catalogoError}
-              </div>
-            )}
-
-            <div className="space-y-6">
-              <div className="relative overflow-hidden rounded-2xl bg-[#1b0b0b] px-5 py-4 text-white shadow-[0_16px_34px_rgba(10,0,0,0.24)]">
-                <div className="absolute inset-0 hero-grid opacity-10"></div>
-                <div className="relative flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[0.65rem] uppercase tracking-[0.32em] text-[#E04040]">Datos de contacto</p>
-                  <span className="text-[0.65rem] text-white/70">Nombre y email o telefono *</span>
+        <form className="grid lg:grid-cols-12 gap-12">
+          
+          {/* LADO IZQUIERDO: FORMULARIO TÉCNICO */}
+          <div className="lg:col-span-7 space-y-12">
+            <div className="p-10 rounded-[2.5rem] border border-white/5 bg-white/[0.01] space-y-10">
+              <h2 className="text-[10px] uppercase tracking-[0.5em] text-white/20 font-bold">Información de Enlace</h2>
+              
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[9px] uppercase tracking-widest text-white/40 ml-4 font-bold">Responsable Técnico</label>
+                  <input type="text" placeholder="Nombre completo" className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-4 text-sm focus:border-gold/50 outline-none transition-all" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] uppercase tracking-widest text-white/40 ml-4 font-bold">Email Corporativo</label>
+                  <input type="email" placeholder="email@empresa.cl" className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-4 text-sm focus:border-gold/50 outline-none transition-all" />
                 </div>
               </div>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
-                  Nombre *
-                  <div className="relative">
-                    <div className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${formErrors.name ? 'text-[#B01010]' : 'text-slate-400'}`}>
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
-                    <input
-                      type="text"
-                      name="name"
-                      required
-                      placeholder="Nombre y apellido"
-                      aria-invalid={Boolean(formErrors.name)}
-                      onInput={() => {
-                        clearFieldError('name');
-                        clearSubmitError();
-                      }}
-                      className={`rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300 ${
-                        formErrors.name ? 'border-[#B01010] focus:ring-[#B01010]' : ''
-                      }`}
-                    />
-                  </div>
-                  {formErrors.name && <span className="text-xs text-[#B01010]">{formErrors.name}</span>}
-                </label>
-                <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
-                  Empresa
-                  <div className="relative">
-                    <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                    </div>
-                    <input
-                      type="text"
-                      name="company"
-                      placeholder="Constructora o maestro"
-                      className="rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300"
-                    />
-                  </div>
-                </label>
-                <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
-                  Email
-                  <div className="relative">
-                    <div className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${formErrors.email || hasContactError ? 'text-[#B01010]' : 'text-slate-400'}`}>
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <input
-                      type="email"
-                      name="email"
-                      placeholder="correo@empresa.cl"
-                      aria-invalid={Boolean(formErrors.email) || hasContactError}
-                      onInput={() => {
-                        clearFieldError('email');
-                        clearFieldError('contact');
-                        clearSubmitError();
-                      }}
-                      className={`rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300 ${
-                        formErrors.email || hasContactError ? 'border-[#B01010] focus:ring-[#B01010]' : ''
-                      }`}
-                    />
-                  </div>
-                  {formErrors.email && <span className="text-xs text-[#B01010]">{formErrors.email}</span>}
-                </label>
-                <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
-                  Telefono
-                  <div className="relative">
-                    <div className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${formErrors.phone || hasContactError ? 'text-[#B01010]' : 'text-slate-400'}`}>
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                      </svg>
-                    </div>
-                    <input
-                      type="tel"
-                      name="phone"
-                      placeholder="912345678 o +56912345678"
-                      inputMode="tel"
-                      aria-invalid={Boolean(formErrors.phone) || hasContactError}
-                      onInput={() => {
-                        clearFieldError('phone');
-                        clearFieldError('contact');
-                        clearSubmitError();
-                      }}
-                      onBlur={(event) => {
-                        const result = normalizarTelefonoChile(event.currentTarget.value);
-                        if (result.isValid && !result.isEmpty) {
-                          event.currentTarget.value = result.normalized;
-                        }
-                      }}
-                      className={`rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300 ${
-                        formErrors.phone || hasContactError ? 'border-[#B01010] focus:ring-[#B01010]' : ''
-                      }`}
-                    />
-                  </div>
-                  {formErrors.phone && <span className="text-xs text-[#B01010]">{formErrors.phone}</span>}
-                </label>
-                <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
-                  Direccion
-                  <div className="relative">
-                    <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    </div>
-                    <input
-                      type="text"
-                      name="address"
-                      placeholder="Direccion de la obra"
-                      className="rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-4 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300"
-                    />
-                  </div>
-                </label>
-                <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
-                  Tipo de obra
-                  <div className="relative">
-                    <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                    </div>
-                    <select
-                      name="projectType"
-                      className="rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-10 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300 appearance-none cursor-pointer"
-                      style={{
-                        backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-                        backgroundPosition: 'right 0.75rem center',
-                        backgroundRepeat: 'no-repeat',
-                        backgroundSize: '1.5em 1.5em',
-                      }}
-                    >
-                      <option value="">Selecciona una opcion</option>
-                      <option value="obra-gruesa">Obra gruesa</option>
-                      <option value="terminaciones">Terminaciones</option>
-                      <option value="ferreteria">Ferreteria</option>
-                      <option value="mixta">Mixta</option>
-                    </select>
-                  </div>
-                </label>
-                <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
-                  Region *
-                  <div className="relative">
-                    <div className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${formErrors.region ? 'text-[#B01010]' : 'text-slate-400'}`}>
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                      </svg>
-                    </div>
-                    <select
-                      name="region"
-                      required
-                      value={regionSeleccionada}
-                      onChange={(event) => handleRegionChange(event.target.value)}
-                      aria-invalid={Boolean(formErrors.region)}
-                      disabled={cargandoRegiones}
-                      className={`rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-10 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300 appearance-none cursor-pointer ${
-                        formErrors.region ? 'border-[#B01010] focus:ring-[#B01010]' : ''
-                      }`}
-                      style={{
-                        backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-                        backgroundPosition: 'right 0.75rem center',
-                        backgroundRepeat: 'no-repeat',
-                        backgroundSize: '1.5em 1.5em',
-                      }}
-                    >
-                      <option value="">{cargandoRegiones ? 'Cargando regiones...' : 'Selecciona una region'}</option>
-                      {regiones.map((region) => (
-                        <option key={region} value={region}>
-                          {region}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {formErrors.region && <span className="text-xs text-[#B01010]">{formErrors.region}</span>}
-                </label>
-                <label className="group flex min-w-0 flex-col gap-2.5 text-sm font-semibold text-slate-700">
-                  Comuna *
-                  <div className="relative">
-                    <div className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${formErrors.comuna ? 'text-[#B01010]' : 'text-slate-400'}`}>
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                      </svg>
-                    </div>
-                    <select
-                      name="comuna"
-                      required
-                      value={comunaSeleccionada}
-                      onChange={(event) => handleComunaChange(event.target.value)}
-                      aria-invalid={Boolean(formErrors.comuna)}
-                      disabled={!regionSeleccionada || cargandoComunas}
-                      className={`rounded-2xl border border-slate-200 bg-white w-full pl-11 pr-10 py-3.5 text-sm text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#E04040] focus:border-transparent hover:border-slate-300 appearance-none cursor-pointer ${
-                        formErrors.comuna ? 'border-[#B01010] focus:ring-[#B01010]' : ''
-                      }`}
-                      style={{
-                        backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-                        backgroundPosition: 'right 0.75rem center',
-                        backgroundRepeat: 'no-repeat',
-                        backgroundSize: '1.5em 1.5em',
-                      }}
-                    >
-                      <option value="">
-                        {!regionSeleccionada
-                          ? 'Selecciona una region primero'
-                          : cargandoComunas
-                            ? 'Cargando comunas...'
-                            : 'Selecciona una comuna'}
-                      </option>
-                      {comunas.map((comuna) => (
-                        <option key={comuna} value={comuna}>
-                          {comuna}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {formErrors.comuna && <span className="text-xs text-[#B01010]">{formErrors.comuna}</span>}
-                </label>
-              </div>
-              {formErrors.contact && (
-                <p className="text-xs text-[#B01010]">{formErrors.contact}</p>
-              )}
-              {dpaError && (
-                <div className="flex items-center gap-3">
-                  <p className="text-xs text-[#B01010]">{dpaError}</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDpaError(null);
-                      if (regionSeleccionada) {
-                        setRetryComunasTick((value) => value + 1);
-                        return;
-                      }
-                      setRetryRegionesTick((value) => value + 1);
-                    }}
-                    className="text-xs font-semibold text-[#B01010] underline underline-offset-2 transition hover:text-[#D03030]"
-                  >
-                    Reintentar
-                  </button>
-                </div>
-              )}
-            </div>
 
-            <div className="space-y-5">
-              <div className="relative overflow-hidden rounded-2xl bg-[#1b0b0b] px-5 py-4 text-white shadow-[0_16px_34px_rgba(10,0,0,0.24)]">
-                <div className="absolute inset-0 hero-grid opacity-10"></div>
-                <div className="relative space-y-2">
-                  <p className="text-[0.65rem] uppercase tracking-[0.32em] text-[#E04040]">Detalle de cotizacion</p>
-                  <h3 className="text-xl font-semibold">Items solicitados</h3>
-                  <p className="text-sm text-white/75">
-                    Selecciona productos del catalogo y ajusta cantidades para calcular el neto total.
-                  </p>
-                </div>
-              </div>
-              {formErrors.items && (
-                <div className="rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-3 text-sm text-[#B01010]">
-                  {formErrors.items}
-                </div>
-              )}
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-slate-600 sm:max-w-xs">
-                  Buscar producto
-                  <input
-                    type="search"
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="Busca por nombre o SKU"
-                    className="rounded-2xl border border-slate-200 bg-white w-full px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040]"
-                  />
-                </label>
-                <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-slate-600 sm:max-w-xs">
-                  Producto a agregar
-                  <select
-                    value={selectedProductId || ''}
-                    onChange={(event) => setSelectedProductId(event.target.value)}
-                    disabled={cargando}
-                    className="rounded-2xl border border-slate-200 bg-white w-full px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040]"
-                  >
-                    <option value="">{cargando ? 'Cargando catalogo...' : 'Selecciona un producto'}</option>
-                    {productos.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.name}
-                      </option>
-                    ))}
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[9px] uppercase tracking-widest text-white/40 ml-4 font-bold">Región</label>
+                  <select value={regionSeleccionada} onChange={e => setRegionSeleccionada(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-4 text-sm focus:border-gold/50 outline-none appearance-none">
+                    <option value="">Seleccionar Región</option>
+                    {regiones.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
-                </label>
-                <button
-                  type="button"
-                  onClick={handleAddItem}
-                  disabled={!canAddItem}
-                  className="rounded-full border border-[#F0E0E0] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#B01010] transition hover:bg-[#F7EAEA] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Agregar item
-                </button>
-              </div>
-
-              {items.length > 0 ? (
-                <>
-                  <div className="hidden xl:grid min-w-0 grid-cols-[minmax(0,2fr)_minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">
-                    <span>Item</span>
-                    <span>Nombre</span>
-                    <span>Unidad</span>
-                    <span>Cantidad</span>
-                    <span>Neto unitario</span>
-                    <span>Neto total</span>
-                    <span></span>
-                  </div>
-                  <div className="space-y-3">
-                    {items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-[0_12px_24px_rgba(15,23,32,0.06)]"
-                      >
-                        <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
-                          <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-slate-600">
-                            Item
-                            <select
-                              name="item"
-                              required
-                              value={item.productoId || ''}
-                              onChange={(event) => handleProductChange(item.id, event.target.value)}
-                              className="rounded-2xl border border-slate-200 bg-white w-full px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040]"
-                            >
-                              <option value="">Selecciona un producto</option>
-                              {productos.map((product) => (
-                                <option key={product.id} value={product.id}>
-                                  {product.name}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-slate-600">
-                            Nombre
-                            <input
-                              type="text"
-                              value={item.nombreSnapshot}
-                              readOnly
-                              className="rounded-2xl border border-slate-200 bg-slate-50 w-full px-3 py-2 text-sm text-slate-600 shadow-sm"
-                            />
-                          </label>
-                          <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-slate-600">
-                            Unidad
-                            <input
-                              type="text"
-                              value={item.unidadSnapshot}
-                              readOnly
-                              className="rounded-2xl border border-slate-200 bg-slate-50 w-full px-3 py-2 text-sm text-slate-600 shadow-sm"
-                            />
-                          </label>
-                          <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-slate-600">
-                            Cantidad
-                            <input
-                              type="number"
-                              min={1}
-                              step={1}
-                              value={item.cantidad}
-                              onChange={(event) =>
-                                handleItemChange(item.id, {
-                                  cantidad: Math.max(1, Number(event.target.value) || 1),
-                                })
-                              }
-                              className="rounded-2xl border border-slate-200 bg-white w-full px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040]"
-                            />
-                          </label>
-                          <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-slate-600">
-                            Neto unitario
-                            <input
-                              type="text"
-                              value={formatCurrency(item.precioUnitario)}
-                              readOnly
-                              className="rounded-2xl border border-slate-200 bg-slate-50 w-full px-3 py-2 text-sm text-slate-600 shadow-sm"
-                            />
-                          </label>
-                          <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-slate-600">
-                            Neto total
-                            <input
-                              type="text"
-                              value={formatCurrency(item.precioUnitario * item.cantidad)}
-                              readOnly
-                              className="rounded-2xl border border-slate-200 bg-slate-50 w-full px-3 py-2 text-sm text-slate-600 shadow-sm"
-                            />
-                          </label>
-                          <div className="flex items-end">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveItem(item.id)}
-                              aria-label="Quitar item"
-                              className="rounded-full border border-[#F0E0E0] px-3 py-2 text-xs font-semibold text-[#B01010] transition hover:bg-[#F7EAEA]"
-                            >
-                              X
-                            </button>
-                          </div>
-                        </div>
-                        <label className="mt-3 flex min-w-0 flex-col gap-2 text-xs font-semibold text-slate-600">
-                          Observacion
-                          <textarea
-                            rows={2}
-                            value={item.observacion || ''}
-                            onChange={(event) =>
-                              handleItemChange(item.id, {
-                                observacion: event.target.value,
-                              })
-                            }
-                            maxLength={MAX_MESSAGE_LENGTH}
-                            placeholder="Notas del item (opcional)"
-                            className="rounded-2xl border border-slate-200 bg-white w-full px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040]"
-                          />
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-4 py-6 text-sm text-slate-600">
-                  Aun no agregas items. Selecciona un producto y usa "Agregar item".
                 </div>
-              )}
-
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Total neto</p>
-                <div className="text-sm font-semibold text-slate-900">
-                  <span className="text-[#B01010]">{formatCurrency(totalNet)}</span>
+                <div className="space-y-2">
+                  <label className="text-[9px] uppercase tracking-widest text-white/40 ml-4 font-bold">Comuna</label>
+                  <select className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-4 text-sm focus:border-gold/50 outline-none appearance-none">
+                    <option value="">Seleccionar Comuna</option>
+                    {comunas.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
               </div>
             </div>
 
-            <label className="flex min-w-0 flex-col gap-2 text-sm font-semibold text-slate-700">
-              <div className="flex items-center justify-between">
-                <span>Mensaje</span>
-                <span className={`text-xs ${messageLength >= MAX_MESSAGE_LENGTH ? 'text-[#B01010]' : 'text-slate-400'}`}>
-                  {messageLength}/{MAX_MESSAGE_LENGTH}
-                </span>
+            {/* SELECCIÓN DE HARDWARE */}
+            <div className="p-10 rounded-[2.5rem] border border-white/5 bg-white/[0.01] space-y-10">
+              <h2 className="text-[10px] uppercase tracking-[0.5em] text-white/20 font-bold">Configuración de Hardware</h2>
+              
+              <div className="space-y-6">
+                <input 
+                  type="search" 
+                  value={searchTerm} 
+                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Buscar dispositivos en el catálogo..." 
+                  className="w-full bg-white/10 border-b border-white/10 py-4 text-lg font-light outline-none placeholder:text-white/10"
+                />
+                
+                <div className="max-h-60 overflow-y-auto no-scrollbar space-y-2">
+                  {productos.map(p => (
+                    <button key={p.id} type="button" onClick={() => handleAddItem(p)} className="w-full flex justify-between p-4 rounded-2xl hover:bg-white/5 transition-colors text-left group">
+                      <span className="text-sm font-light group-hover:text-gold transition-colors">{p.name}</span>
+                      <span className="text-[10px] text-white/20 uppercase tracking-widest">{formatCurrency(p.price)}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              <textarea
-                name="message"
-                rows={4}
-                value={messageValue}
-                maxLength={MAX_MESSAGE_LENGTH}
-                onChange={(event) => {
-                  setMessageValue(event.target.value);
-                  clearFieldError('message');
-                  clearSubmitError();
-                }}
-                placeholder="Indica cantidades, plazos y forma de despacho."
-                className={`rounded-2xl border border-slate-200 bg-white w-full px-4 py-3 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E04040] ${
-                  formErrors.message ? 'border-[#B01010] focus:ring-[#B01010]' : ''
-                }`}
-              />
-              {formErrors.message && <span className="text-xs text-[#B01010]">{formErrors.message}</span>}
-            </label>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
-                Respuesta en 24 a 72 horas habiles
-              </p>
-              <button
-                type="submit"
-                disabled={isSubmitDisabled}
-                className="rounded-full bg-[#B01010] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(176,16,16,0.3)] transition hover:bg-[#D03030] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {submitting ? 'Creando...' : 'Enviar cotizacion'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </section>
-
-      <ModalSuccessCotizacion
-        open={successOpen}
-        stage={successStage}
-        data={submitted}
-        onClose={handleCloseSuccess}
-        onView={detalleUrl ? handleViewSuccess : undefined}
-      />
-
-      {showLoginModal && (
-        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-[#1b0b0b]/40 px-4">
-          <div className="modal-panel w-full max-w-md rounded-3xl border border-[#F0E0E0] bg-white p-6 shadow-[0_20px_50px_rgba(176,16,16,0.15)]">
-            <div className="flex items-center justify-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F7EAEA]">
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-7 w-7 text-[#B01010]"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="8" r="4" />
-                  <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
-                </svg>
-              </div>
-            </div>
-            <p className="mt-4 text-center text-xs uppercase tracking-[0.32em] text-[#B01010]">
-              Inicio de sesion requerido
-            </p>
-            <h2 className="mt-2 text-center text-2xl font-semibold text-slate-900">
-              Debes iniciar sesion
-            </h2>
-            <p className="mt-2 text-center text-sm text-slate-600">
-              Para enviar una cotizacion necesitas iniciar sesion.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => setShowLoginModal(false)}
-                className="flex-1 rounded-full border border-[#F0E0E0] px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowLoginModal(false);
-                  navigate('/login');
-                }}
-                className="flex-1 rounded-full bg-[#B01010] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(176,16,16,0.3)] transition hover:bg-[#D03030]"
-              >
-                Iniciar sesion
-              </button>
             </div>
           </div>
-        </div>
-      )}
+
+          {/* LADO DERECHO: RESUMEN DE COTIZACIÓN */}
+          <div className="lg:col-span-5">
+            <div className="sticky top-32 p-10 rounded-[3rem] border border-gold/10 bg-gradient-to-b from-gold/[0.03] to-transparent backdrop-blur-md space-y-10">
+              <h3 className="text-[10px] uppercase tracking-[0.5em] text-gold font-bold">Resumen de Propuesta</h3>
+              
+              <div className="space-y-4 max-h-80 overflow-y-auto pr-2 no-scrollbar">
+                {items.length === 0 ? (
+                  <p className="text-xs text-white/20 italic text-center py-10">No se han integrado dispositivos a la configuración.</p>
+                ) : (
+                  items.map((item, i) => (
+                    <div key={i} className="flex justify-between items-center py-4 border-b border-white/5">
+                      <div className="min-w-0 pr-4">
+                        <p className="text-sm font-light truncate">{item.name}</p>
+                        <p className="text-[9px] text-white/30">Cant: {item.cantidad}</p>
+                      </div>
+                      <p className="text-sm font-medium text-gold">{formatCurrency(item.price * item.cantidad)}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="pt-8 border-t border-white/10">
+                <div className="flex justify-between items-end mb-10">
+                  <p className="text-[10px] uppercase tracking-[0.4em] text-white/30">Inversión Estimada</p>
+                  <p className="text-4xl font-light text-gold tracking-tighter italic">{formatCurrency(totalNeto)}</p>
+                </div>
+                
+                <button 
+                  disabled={items.length === 0 || submitting}
+                  className="w-full py-6 rounded-full bg-gold text-black font-bold text-[10px] tracking-[0.4em] hover:bg-white transition-all duration-500 shadow-3xl shadow-gold/20 disabled:opacity-20"
+                >
+                  {submitting ? 'SINCRONIZANDO...' : 'SOLICITAR PROPUESTA'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </form>
+      </section>
+
+      <ModalSuccessCotizacion open={successOpen} stage="confirmed" data={submittedData} onClose={() => setSuccessOpen(false)} />
     </div>
   );
 };

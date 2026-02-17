@@ -20,20 +20,15 @@ const estadoLabel = (estado?: string | null) => {
 };
 
 const estadoColor = (estado?: string | null) => {
-  if (!estado) return 'text-amber-600';
-  if (estado === 'CONFIRMADO') return 'text-emerald-600';
-  if (estado === 'RECHAZADO') return 'text-[#B01010]';
-  if (estado === 'PENDIENTE') return 'text-amber-600';
-  return 'text-slate-500';
+  if (!estado) return 'text-gold';
+  if (estado === 'CONFIRMADO') return 'text-emerald-400';
+  if (estado === 'RECHAZADO') return 'text-red-400';
+  if (estado === 'PENDIENTE') return 'text-gold';
+  return 'text-white/20';
 };
 
 const resolverMetodoPago = (pago: PagoDetalle) => {
-  if (pago.metodo === 'STRIPE') {
-    return 'Stripe';
-  }
-  if (pago.metodo === 'OTRO' && pago.proveedor?.referencia?.startsWith('pi_')) {
-    return 'Stripe';
-  }
+  if (pago.metodo === 'STRIPE' || (pago.metodo === 'OTRO' && pago.proveedor?.referencia?.startsWith('pi_'))) return 'Stripe';
   return pago.metodo.replace(/_/g, ' ');
 };
 
@@ -47,15 +42,9 @@ const PaymentDetailPage = () => {
   const [pdfCargando, setPdfCargando] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated || !id) {
-      setEstado('error');
-      return;
-    }
-
+    if (!isAuthenticated || !id) { setEstado('error'); return; }
     let activo = true;
     setEstado('cargando');
-    setError(null);
-
     obtenerPagoDetalle(id)
       .then((data) => {
         if (!activo) return;
@@ -64,14 +53,10 @@ const PaymentDetailPage = () => {
       })
       .catch((err) => {
         if (!activo) return;
-        const mensaje = err instanceof Error ? err.message : 'No se pudo cargar el pago.';
-        setError(mensaje);
+        setError(err instanceof Error ? err.message : 'Error de sincronización.');
         setEstado('error');
       });
-
-    return () => {
-      activo = false;
-    };
+    return () => { activo = false; };
   }, [id, isAuthenticated]);
 
   const descargarPdf = async () => {
@@ -89,8 +74,7 @@ const PaymentDetailPage = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      const mensaje = err instanceof Error ? err.message : 'No se pudo descargar el recibo.';
-      setPdfError(mensaje);
+      setPdfError('No se pudo generar el documento.');
     } finally {
       setPdfCargando(false);
     }
@@ -98,31 +82,14 @@ const PaymentDetailPage = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="rounded-3xl border border-[#F0E0E0] bg-white/90 p-10 text-center shadow-[0_20px_50px_rgba(15,23,32,0.08)]">
-          <p className="text-xs uppercase tracking-[0.32em] text-[#B01010]">Detalle de pago</p>
-          <h1 className="mt-3 font-display text-3xl text-slate-900">Inicia sesion</h1>
-          <p className="mt-3 text-sm text-slate-600">
-            Debes iniciar sesion para ver los detalles de este pago.
-          </p>
-          <div className="mt-6 flex justify-center">
-            <Link
-              to="/login"
-              className="rounded-full bg-[#B01010] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(176,16,16,0.3)] transition hover:bg-[#D03030]"
-            >
-              Ir a login
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!id) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="rounded-3xl border border-[#F0E0E0] bg-white/90 p-10 text-center shadow-[0_20px_50px_rgba(15,23,32,0.08)]">
-          <p className="text-sm text-[#B01010]">No se encontro el pago solicitado.</p>
+      <div className="min-h-screen bg-black flex items-center justify-center p-6">
+        <div className="max-w-md w-full rounded-[3rem] border border-white/10 bg-white/[0.02] p-12 text-center backdrop-blur-2xl shadow-2xl">
+          <p className="text-[10px] uppercase tracking-[0.5em] text-gold font-bold mb-6">Seguridad Econnet</p>
+          <h1 className="text-3xl font-light tracking-tight mb-4 text-white">Acceso Denegado</h1>
+          <p className="text-sm text-white/40 font-light mb-8 leading-relaxed">Debes autenticar tu cuenta para visualizar los detalles financieros de este registro.</p>
+          <Link to="/login" className="inline-block w-full py-5 rounded-full bg-gold text-black font-bold text-[10px] tracking-widest hover:bg-white transition-all duration-500">
+            INICIAR SESIÓN
+          </Link>
         </div>
       </div>
     );
@@ -130,156 +97,117 @@ const PaymentDetailPage = () => {
 
   if (estado === 'cargando') {
     return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="rounded-3xl border border-slate-200 bg-white/90 p-10 text-center shadow-[0_20px_50px_rgba(15,23,32,0.08)]">
-          <p className="text-sm text-slate-600">Cargando detalle del pago...</p>
-        </div>
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center space-y-4">
+        <div className="h-10 w-10 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-[10px] uppercase tracking-[0.5em] text-white/20">Obteniendo recibo digital...</p>
       </div>
     );
   }
 
   if (estado === 'error' || !detalle) {
     return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="rounded-3xl border border-[#F0E0E0] bg-white/90 p-10 text-center shadow-[0_20px_50px_rgba(15,23,32,0.08)]">
-          <p className="text-sm text-[#B01010]">{error || 'No se pudo cargar el pago.'}</p>
-          <div className="mt-6 flex justify-center">
-            <Link
-              to="/mis-pagos"
-              className="rounded-full border border-[#F0E0E0] px-6 py-3 text-sm font-semibold text-[#B01010] transition hover:bg-[#F7EAEA]"
-            >
-              Volver a mis pagos
-            </Link>
-          </div>
+      <div className="min-h-screen bg-black flex items-center justify-center p-6">
+        <div className="max-w-md w-full rounded-[3rem] border border-red-500/10 bg-red-500/5 p-12 text-center backdrop-blur-2xl">
+          <p className="text-sm text-red-400/60 font-light">{error || 'Registro no encontrado.'}</p>
+          <Link to="/mis-pagos" className="inline-block mt-8 text-[10px] uppercase tracking-widest text-white/40 hover:text-white transition-colors">Volver al Historial</Link>
         </div>
       </div>
     );
   }
 
-  const referencia = detalle.proveedor?.referencia ?? null;
-  const mostrarReferencia =
-    referencia != null && detalle.metodo !== 'STRIPE' && !referencia.startsWith('pi_');
-
   return (
-    <div className="space-y-10 pb-20">
-      <section className="container mx-auto px-4 pt-12">
-        <div className="rounded-3xl border border-[#F0E0E0] bg-white/90 p-8 shadow-[0_20px_50px_rgba(15,23,32,0.08)]">
-          <p className={`text-xs uppercase tracking-[0.32em] ${estadoColor(detalle.estado)}`}>
-            {estadoLabel(detalle.estado)}
-          </p>
-          <h1 className="mt-3 font-display text-3xl text-slate-900">Detalle de pago</h1>
-          <p className="mt-3 text-sm text-slate-600">
-            Pago ID: <span className="font-semibold text-slate-800">{detalle.pagoId}</span>
-          </p>
-
-          <div className="mt-6 grid gap-3 text-xs text-slate-600 sm:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Pedido</p>
-              <p className="mt-1 font-semibold text-slate-700">
-                {detalle.pedido?.codigo || detalle.pedido?.id || 'Sin pedido'}
-              </p>
+    <div className="min-h-screen bg-black text-white pt-32 pb-40 font-inter">
+      <section className="container mx-auto px-6 max-w-5xl">
+        
+        {/* RESUMEN DEL RECIBO */}
+        <div className="relative overflow-hidden rounded-[3rem] border border-white/10 bg-white/[0.02] p-10 md:p-16 mb-12 shadow-2xl backdrop-blur-sm">
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-gold/5 rounded-full blur-[100px]"></div>
+          
+          <div className="flex flex-col md:flex-row justify-between items-start gap-8">
+            <div className="space-y-4">
+              <span className={`text-[9px] font-bold uppercase tracking-[0.4em] px-3 py-1 rounded-full border ${estadoColor(detalle.estado).replace('text-', 'border-')}/20 ${estadoColor(detalle.estado)}`}>
+                {estadoLabel(detalle.estado)}
+              </span>
+              <h1 className="text-4xl md:text-6xl font-light tracking-tight italic">Comprobante <span className="text-gold font-normal">Digital</span></h1>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">ID de Pago: <span className="text-white/60 font-mono ml-2">{detalle.pagoId}</span></p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Metodo</p>
-              <p className="mt-1 font-semibold text-slate-700">{resolverMetodoPago(detalle)}</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Monto</p>
-              <p className="mt-1 font-semibold text-slate-700">{formatCurrency(detalle.monto)}</p>
-            </div>
-            {mostrarReferencia && (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Referencia</p>
-                <p className="mt-1 font-semibold text-slate-700">{referencia}</p>
-              </div>
-            )}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Creado</p>
-              <p className="mt-1 font-semibold text-slate-700">{formatDateTime(detalle.createdAt)}</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Actualizado</p>
-              <p className="mt-1 font-semibold text-slate-700">{formatDateTime(detalle.updatedAt)}</p>
-            </div>
-          </div>
-
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            
             <button
-              type="button"
               onClick={descargarPdf}
               disabled={pdfCargando}
-              className="rounded-full border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
+              className="px-10 py-5 rounded-full bg-gold text-black font-bold text-[10px] tracking-widest hover:bg-white transition-all duration-500 shadow-2xl shadow-gold/20 disabled:opacity-20 shrink-0"
             >
-              {pdfCargando ? 'Descargando recibo...' : 'Descargar recibo PDF'}
+              {pdfCargando ? 'GENERANDO...' : 'DESCARGAR PDF'}
             </button>
-            <Link
-              to="/mis-pagos"
-              className="rounded-full border border-[#F0E0E0] px-6 py-3 text-sm font-semibold text-[#B01010] transition hover:bg-[#F7EAEA]"
-            >
-              Volver a mis pagos
-            </Link>
           </div>
-          {pdfError && <p className="mt-2 text-xs text-[#B01010]">{pdfError}</p>}
-        </div>
-      </section>
 
-      {detalle.pedido && (
-        <section className="container mx-auto px-4">
-          <div className="rounded-3xl border border-slate-200 bg-white/90 p-8 shadow-[0_20px_50px_rgba(15,23,32,0.08)]">
-            <h2 className="text-xl font-semibold text-slate-900">Detalle del pedido</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Estado: <span className="font-semibold">{detalle.pedido.estado}</span>
-            </p>
-            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Subtotal</p>
-                <p className="mt-1 font-semibold text-slate-700">{formatCurrency(detalle.pedido.subtotalNeto || 0)}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">IVA</p>
-                <p className="mt-1 font-semibold text-slate-700">{formatCurrency(detalle.pedido.iva || 0)}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Total</p>
-                <p className="mt-1 font-semibold text-slate-700">{formatCurrency(detalle.pedido.total)}</p>
-              </div>
+          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div className="space-y-1">
+              <p className="text-[8px] uppercase tracking-widest text-white/20">Referencia Pedido</p>
+              <p className="text-lg font-light text-white">{detalle.pedido?.codigo || '---'}</p>
             </div>
-
-            {detalle.pedido.direccion && (
-              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-400">Direccion de despacho</p>
-                <p className="mt-2 font-semibold">{detalle.pedido.direccion.nombreContacto}</p>
-                <p>{detalle.pedido.direccion.direccion}</p>
-                <p>
-                  {detalle.pedido.direccion.comuna}
-                  {detalle.pedido.direccion.ciudad ? `, ${detalle.pedido.direccion.ciudad}` : ''}
-                </p>
-                <p>{detalle.pedido.direccion.region}</p>
-                {detalle.pedido.direccion.telefono && <p>Tel: {detalle.pedido.direccion.telefono}</p>}
-                {detalle.pedido.direccion.email && <p>Email: {detalle.pedido.direccion.email}</p>}
-              </div>
-            )}
-
-            {detalle.pedido.items.length > 0 && (
-              <div className="mt-6 space-y-3">
-                <p className="text-xs uppercase tracking-[0.32em] text-slate-400">Items</p>
-                {detalle.pedido.items.map((item, index) => (
-                  <div
-                    key={`${item.descripcionSnapshot}-${index}`}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm"
-                  >
-                    <p className="font-semibold text-slate-900">{item.descripcionSnapshot}</p>
-                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
-                      <span>Cantidad: {item.cantidad}</span>
-                      <span>Total: {formatCurrency(item.totalSnapshot)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="space-y-1">
+              <p className="text-[8px] uppercase tracking-widest text-white/20">Método de Pago</p>
+              <p className="text-lg font-light text-white">{resolverMetodoPago(detalle)}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[8px] uppercase tracking-widest text-white/20">Fecha Registro</p>
+              <p className="text-lg font-light text-white">{formatDateTime(detalle.createdAt)}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[8px] uppercase tracking-widest text-white/20">Inversión Total</p>
+              <p className="text-2xl font-light text-gold tracking-tight">{formatCurrency(detalle.monto)}</p>
+            </div>
           </div>
-        </section>
-      )}
+        </div>
+
+        {/* DETALLE TÉCNICO DEL PEDIDO */}
+        {detalle.pedido && (
+          <div className="space-y-12">
+            <div className="grid md:grid-cols-12 gap-12">
+              
+              {/* LISTA DE ITEMS */}
+              <div className="md:col-span-8 space-y-6">
+                <h2 className="text-[10px] uppercase tracking-[0.5em] text-white/20 ml-6">Artículos Curados</h2>
+                <div className="space-y-3">
+                  {detalle.pedido.items.map((item, index) => (
+                    <div key={`${item.descripcionSnapshot}-${index}`} className="group p-6 rounded-[2rem] border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] transition-all">
+                      <div className="flex justify-between items-center">
+                        <div className="space-y-1">
+                          <p className="text-lg font-light text-white group-hover:text-gold transition-colors">{item.descripcionSnapshot}</p>
+                          <p className="text-[9px] uppercase tracking-widest text-white/20">Cantidad: {item.cantidad}</p>
+                        </div>
+                        <p className="text-sm font-light text-white">{formatCurrency(item.totalSnapshot)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* LOGÍSTICA DE DESPACHO */}
+              <div className="md:col-span-4">
+                <div className="sticky top-32 rounded-[2.5rem] border border-white/5 bg-gradient-to-br from-white/[0.03] to-transparent p-10 space-y-8 backdrop-blur-md">
+                   <h3 className="text-[10px] uppercase tracking-[0.4em] text-gold font-bold">Logística</h3>
+                   {detalle.pedido.direccion ? (
+                     <div className="space-y-6 text-sm font-light text-white/60 leading-relaxed">
+                        <div>
+                          <p className="text-[8px] uppercase tracking-widest text-white/20 mb-2">Responsable</p>
+                          <p className="text-white font-normal">{detalle.pedido.direccion.nombreContacto}</p>
+                        </div>
+                        <div>
+                          <p className="text-[8px] uppercase tracking-widest text-white/20 mb-2">Destino</p>
+                          <p>{detalle.pedido.direccion.direccion}</p>
+                          <p>{detalle.pedido.direccion.comuna}, {detalle.pedido.direccion.region}</p>
+                        </div>
+                     </div>
+                   ) : <p className="text-xs text-white/20 italic">Información de despacho no disponible.</p>}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 };

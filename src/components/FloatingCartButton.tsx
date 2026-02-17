@@ -1,8 +1,8 @@
 import { useEffect, useState, type Ref } from 'react';
+import { useCart } from '../context/CartContext';
 
 type FloatingCartButtonProps = {
   onClick: () => void;
-  totalQuantity: number;
   isActive: boolean;
   isOpen: boolean;
   buttonRef?: Ref<HTMLButtonElement>;
@@ -10,36 +10,14 @@ type FloatingCartButtonProps = {
 
 const FloatingCartButton = ({
   onClick,
-  totalQuantity,
   isActive,
   isOpen,
   buttonRef,
 }: FloatingCartButtonProps) => {
-  const [isMobile, setIsMobile] = useState(false);
+  // Obtenemos la cantidad directamente del contexto para mayor reactividad
+  const { totalQuantity } = useCart();
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const media = window.matchMedia('(max-width: 768px)');
-
-    const update = () => setIsMobile(media.matches);
-
-    update();
-
-    if (typeof media.addEventListener === 'function') {
-      media.addEventListener('change', update);
-      return () => media.removeEventListener('change', update);
-    }
-
-    media.addListener(update);
-    return () => media.removeListener(update);
-  }, []);
-
-  if (!isMobile) {
-    return null;
-  }
+  if (totalQuantity === 0) return null;
 
   return (
     <button
@@ -49,30 +27,28 @@ const FloatingCartButton = ({
       aria-label="Abrir carrito"
       aria-expanded={isOpen}
       aria-haspopup="dialog"
-      className={`fixed bottom-[112px] right-4 z-[70] flex h-14 w-14 items-center justify-center rounded-full bg-[#B01010] text-white shadow-[0_20px_40px_rgba(176,16,16,0.35)] transition hover:bg-[#D03030] hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E04040]/60 sm:bottom-[128px] sm:right-6 ${
-        isActive ? 'ring-2 ring-[#E04040]/60' : ''
+      className={`fixed bottom-8 right-8 z-[50] flex h-16 w-16 items-center justify-center rounded-full border border-white/20 bg-white/[0.03] backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-500 hover:scale-110 hover:bg-white/[0.08] hover:border-white/40 active:scale-95 focus:outline-none ${
+        isActive ? 'ring-2 ring-white/40 border-white/60' : ''
       }`}
     >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-6 w-6"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2.5}
+      {/* Resplandor blanco sutil de fondo al hacer hover (opcional, incluido en la clase hover anterior) */}
+      
+      {/* Icono Minimalista de Bolsa - Estilo Apple */}
+      <svg 
+        viewBox="0 0 24 24" 
+        className="h-6 w-6 text-white/80 transition-colors duration-300" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth={1.2}
         aria-hidden="true"
       >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-        />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
       </svg>
-      {totalQuantity > 0 && (
-        <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#E04040] text-[0.65rem] font-bold text-white shadow-md ring-2 ring-white">
-          {totalQuantity}
-        </span>
-      )}
+
+      {/* CONTADOR DE CRISTAL - 100% Neutro */}
+      <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-white/20 bg-white/10 backdrop-blur-md text-[10px] font-light text-white shadow-lg animate-in zoom-in duration-300">
+        {totalQuantity}
+      </span>
     </button>
   );
 };

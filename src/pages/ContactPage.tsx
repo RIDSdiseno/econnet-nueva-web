@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { covasaContact } from '../data/contact';
+// CORRECCIÓN: Importamos el nuevo nombre de la constante
+import { econnetContact } from '../data/contact';
 
 type ContactDetail = {
   label: string;
@@ -11,43 +12,42 @@ type ContactDetail = {
 
 const contactDetails: ContactDetail[] = [
   {
-    label: 'Email',
-    value: covasaContact.email,
-    href: covasaContact.emailUrl,
+    label: 'Email Corporativo',
+    value: econnetContact.email,
+    href: econnetContact.emailUrl,
     icon: (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-        <path d="M4 4h16v16H4z" />
-        <path d="m22 6-10 7L2 6" />
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
       </svg>
     ),
   },
   {
-    label: 'Direccion',
-    value: covasaContact.address,
+    label: 'Centro de Experiencia',
+    value: econnetContact.address,
     icon: (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-        <path d="M12 21s-6-4.35-6-10a6 6 0 1 1 12 0c0 5.65-6 10-6 10z" />
-        <circle cx="12" cy="11" r="2" />
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0z" />
       </svg>
     ),
   },
   {
-    label: 'Telefono fijo',
-    value: covasaContact.phone,
-    href: covasaContact.phoneUrl,
+    label: 'Línea Directa',
+    value: econnetContact.phone,
+    href: econnetContact.phoneUrl,
     icon: (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.86 19.86 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.12.86.31 1.7.57 2.5a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.58-1.09a2 2 0 0 1 2.11-.45c.8.26 1.64.45 2.5.57a2 2 0 0 1 1.72 1.98z" />
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-2.824-1.474-5.11-3.76-6.584-6.584l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25z" />
       </svg>
     ),
   },
   {
-    label: 'WhatsApp',
-    value: covasaContact.whatsapp,
-    href: covasaContact.whatsappUrl,
+    label: 'WhatsApp Business',
+    value: econnetContact.whatsapp,
+    href: econnetContact.whatsappUrl,
     icon: (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
       </svg>
     ),
   },
@@ -55,131 +55,79 @@ const contactDetails: ContactDetail[] = [
 
 const ContactPage = () => {
   return (
-    <div className="space-y-10 pb-20">
-      <section className="container mx-auto px-4 pt-12">
-        <div className="relative overflow-hidden rounded-3xl bg-[#1b0b0b] p-8 text-white lg:p-12">
-          <div className="absolute inset-0 hero-grid opacity-10"></div>
-          <div className="relative space-y-4">
-            <p className="text-xs uppercase tracking-[0.32em] text-[#E04040]">Contacto</p>
-            <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl">Contacto Covasa Chile</h1>
-            <p className="max-w-2xl text-sm text-white/75">
-              Canales directos para coordinar soporte tecnico y consultas de abastecimiento B2B.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="container mx-auto px-4">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-          <div className="zoom-card space-y-6 rounded-3xl border border-[#F0E0E0] bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,32,0.08)]">
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.32em] text-[#B01010]">Contacto oficial</p>
-              <h2 className="text-2xl font-semibold text-slate-900">Canales de contacto</h2>
-              <p className="text-sm text-slate-600">
-                Atendemos constructoras, empresas y obras con soporte en Santiago y regiones.
+    <div className="min-h-screen bg-black text-white pt-32 pb-20 font-inter">
+      <div className="container mx-auto px-6">
+        
+        {/* HEADER DE CONTACTO */}
+        <section className="mb-20">
+          <div className="relative overflow-hidden rounded-[3rem] border border-white/10 bg-white/[0.02] p-10 md:p-16 shadow-2xl backdrop-blur-md">
+            <div className="absolute -top-24 -left-24 w-96 h-96 bg-gold/5 rounded-full blur-[100px]"></div>
+            <div className="relative space-y-6 max-w-3xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-gold/30 bg-gold/5 text-[10px] uppercase tracking-[0.5em] text-gold font-bold">
+                Soporte de Élite
+              </div>
+              <h1 className="text-5xl md:text-7xl font-light tracking-tight italic">Conecta con <span className="text-gold font-normal">nosotros.</span></h1>
+              <p className="text-white/40 font-light text-lg leading-relaxed">
+                Asesoría técnica de alta fidelidad para la gestión de proyectos tecnológicos complejos.
               </p>
             </div>
+          </div>
+        </section>
 
-            <div className="grid gap-3 text-sm text-slate-700">
+        {/* CONTENIDO PRINCIPAL */}
+        <div className="grid gap-12 lg:grid-cols-2">
+          
+          <div className="space-y-8 p-10 rounded-[3rem] border border-white/5 bg-white/[0.01]">
+            <h2 className="text-[10px] uppercase tracking-[0.4em] text-gold font-black">Oficial</h2>
+            <div className="grid gap-4">
               {contactDetails.map((detail) => (
-                <div
-                  key={detail.label}
-                  className="flex gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3"
-                >
-                  <span className="mt-1 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#F7EAEA] text-[#B01010]">
+                <div key={detail.label} className="group flex items-center gap-6 p-6 rounded-[2rem] border border-white/5 bg-white/[0.02] hover:border-gold/30 transition-all duration-500">
+                  <span className="h-12 w-12 flex items-center justify-center rounded-full bg-white/5 text-gold group-hover:bg-gold group-hover:text-black transition-all">
                     {detail.icon}
                   </span>
                   <div>
-                    <p className="text-xs uppercase tracking-[0.25em] text-slate-500">{detail.label}</p>
+                    <p className="text-[9px] uppercase tracking-widest text-white/30 mb-1">{detail.label}</p>
                     {detail.href ? (
-                      <a
-                        href={detail.href}
-                        className="text-base font-semibold text-slate-900 transition hover:text-[#B01010]"
-                      >
-                        {detail.value}
-                      </a>
+                      <a href={detail.href} className="text-lg font-light hover:text-gold transition-colors">{detail.value}</a>
                     ) : (
-                      <p className="text-base font-semibold text-slate-900">{detail.value}</p>
+                      <p className="text-lg font-light">{detail.value}</p>
                     )}
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-4 text-sm text-slate-700">
-              <p className="text-xs uppercase tracking-[0.25em] text-[#B01010]">Ubicacion</p>
-              <p className="mt-2">Visitas y retiros con coordinacion previa.</p>
-              <a
-                href={covasaContact.mapsUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#B01010] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#D03030]"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path d="M12 21s-6-4.35-6-10a6 6 0 1 1 12 0c0 5.65-6 10-6 10z" />
-                  <circle cx="12" cy="11" r="2" />
-                </svg>
-                Abrir en Google Maps
+            <div className="p-8 rounded-[2rem] border border-white/5 bg-white/[0.03] space-y-6">
+              <p className="text-sm text-white/40 font-light italic">Visitas presenciales solo mediante agendamiento previo en nuestro centro de operaciones.</p>
+              <a href={econnetContact.mapsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center px-8 py-4 rounded-full bg-white text-black font-bold text-[10px] tracking-widest hover:bg-gold transition-all duration-500">
+                VER UBICACIÓN
               </a>
             </div>
           </div>
 
-          <div className="zoom-card space-y-6 rounded-3xl border border-[#F0E0E0] bg-white/80 p-6">
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.32em] text-[#B01010]">Atencion al cliente</p>
-              <h3 className="text-xl font-semibold text-slate-900">Soporte B2B para obras y empresas</h3>
-              <p className="text-sm text-slate-600">
-                Equipo comercial y operativo enfocado en proyectos de construccion y compras por volumen.
-              </p>
-            </div>
-            <div className="space-y-3 text-sm text-slate-700">
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Horario de atencion</p>
-                <p className="text-base font-semibold text-slate-900">
-                  Lunes a viernes, horario de oficina (coordinacion previa para obras).
+          {/* PANEL DE PROYECTOS */}
+          <div className="space-y-8 p-10 rounded-[3rem] border border-gold/10 bg-gradient-to-b from-gold/[0.03] to-transparent">
+            <h3 className="text-[10px] uppercase tracking-[0.4em] text-gold font-black">Ecosistema B2B</h3>
+            <div className="space-y-4">
+              <div className="p-8 rounded-[2rem] border border-white/5 bg-white/[0.02]">
+                <p className="text-[10px] uppercase tracking-widest text-white/30 mb-3">Horario Corporativo</p>
+                <p className="text-base font-light italic text-gold">Lunes a Viernes, 09:00 - 18:00 hrs.</p>
+              </div>
+
+              <div className="p-10 rounded-[2.5rem] bg-gold text-black space-y-6 shadow-3xl shadow-gold/20">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em]">Configuración de Hardware</p>
+                <p className="text-sm font-medium leading-relaxed">
+                  Para presupuestos detallados de infraestructura o compras por volumen, inicia una propuesta técnica formal.
                 </p>
+                <Link to="/cotizar" className="inline-block px-10 py-4 rounded-full bg-black text-white font-bold text-[10px] tracking-widest hover:bg-white hover:text-black transition-all duration-500">
+                  INICIAR COTIZACIÓN
+                </Link>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Canales oficiales</p>
-                <div className="mt-2 space-y-2 text-sm text-slate-700">
-                  <a
-                    href={covasaContact.emailUrl}
-                    className="block font-semibold text-slate-900 transition hover:text-[#B01010]"
-                  >
-                    Email: {covasaContact.email}
-                  </a>
-                  <a
-                    href={covasaContact.phoneUrl}
-                    className="block font-semibold text-slate-900 transition hover:text-[#B01010]"
-                  >
-                    Telefono: {covasaContact.phone}
-                  </a>
-                  <a
-                    href={covasaContact.whatsappUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block font-semibold text-slate-900 transition hover:text-[#B01010]"
-                  >
-                    WhatsApp: {covasaContact.whatsapp}
-                  </a>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-[#F0E0E0] bg-[#F7EAEA] px-4 py-4 text-sm text-slate-700">
-              <p className="text-xs uppercase tracking-[0.25em] text-[#B01010]">Cotizaciones</p>
-              <p className="mt-2">
-                Si necesitas precios y disponibilidad, completa la solicitud de cotizacion.
-              </p>
-              <Link
-                to="/cotizar"
-                className="mt-4 inline-flex rounded-full bg-[#B01010] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#D03030]"
-              >
-                Ir a cotizacion
-              </Link>
             </div>
           </div>
+
         </div>
-      </section>
+      </div>
     </div>
   );
 };

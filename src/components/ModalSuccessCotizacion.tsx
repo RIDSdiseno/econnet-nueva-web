@@ -30,104 +30,98 @@ const ModalSuccessCotizacion = ({ open, stage, data, onClose, onView }: ModalSuc
   const titleId = useId();
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
+    if (!open) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
+      if (event.key === 'Escape') onClose();
     };
-
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', handleKeyDown);
-
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [open, onClose]);
 
-  if (!open || typeof document === 'undefined') {
-    return null;
-  }
+  if (!open || typeof document === 'undefined') return null;
 
   const isConfirming = stage === 'confirming';
   const codigo = data?.codigo || data?.id || '';
   const fecha = formatDateTime(data?.createdAt);
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[70] flex items-center justify-center px-4 py-8 sm:py-12"
-      onClick={onClose}
-    >
-      <div className="modal-backdrop fixed inset-0 bg-emerald-950/40 backdrop-blur-md"></div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4" onClick={onClose}>
+      {/* Backdrop con desenfoque profundo */}
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-xl"></div>
+      
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="modal-panel relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-emerald-200/60 bg-gradient-to-br from-white via-emerald-50/70 to-emerald-100/80 shadow-[0_30px_80px_rgba(6,95,70,0.28)]"
+        className="modal-panel relative z-10 w-full max-w-lg overflow-hidden rounded-[3rem] border border-white/10 bg-[#0A0A0A]/90 backdrop-blur-2xl shadow-3xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="absolute -right-20 -top-20 h-48 w-48 rounded-full bg-emerald-200/40 blur-3xl"></div>
-        <div className="absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-emerald-100/60 blur-3xl"></div>
-
-        <div className="relative space-y-6 p-6 sm:p-8">
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-[0_12px_24px_rgba(16,185,129,0.35)]">
-              <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={2.5}>
+        {/* Luces de fondo doradas sutiles */}
+        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-gold/10 blur-[80px]"></div>
+        
+        <div className="relative space-y-8 p-8 sm:p-12 text-center">
+          {/* Icono Dorado con Animación */}
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gold text-black shadow-[0_0_50px_rgba(197,160,89,0.3)] animate-in zoom-in duration-500">
+            {isConfirming ? (
+              <div className="h-8 w-8 border-3 border-black border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <svg viewBox="0 0 24 24" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs uppercase tracking-[0.32em] text-emerald-500">
-                {isConfirming ? 'Confirmando...' : 'Confirmada'}
-              </p>
-              <h2 id={titleId} className="text-2xl font-semibold text-emerald-900">
-                {isConfirming ? 'Confirmando cotización' : 'Cotización confirmada'}
-              </h2>
-              <p className="text-sm text-emerald-800/80">
-                {isConfirming
-                  ? 'Estamos registrando tu solicitud.'
-                  : 'Recibimos tu solicitud y la estamos procesando.'}
-              </p>
-            </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-[10px] uppercase tracking-[0.5em] text-gold font-bold">
+              {isConfirming ? 'Procesando' : 'Sistema Actualizado'}
+            </p>
+            <h2 id={titleId} className="text-3xl font-light tracking-tight text-white">
+              {isConfirming ? 'Registrando Solicitud' : 'Cotización Confirmada'}
+            </h2>
+            <p className="text-sm text-white/40 font-light leading-relaxed">
+              {isConfirming
+                ? 'Sincronizando los parámetros de tu configuración con nuestro ecosistema.'
+                : 'Hemos recibido tu solicitud técnica. Un especialista revisará los detalles.'}
+            </p>
           </div>
 
           {data && !isConfirming && (
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-emerald-200/70 bg-white/70 px-4 py-3 text-sm">
-                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-emerald-400">Código</p>
-                <p className="mt-1 font-semibold text-emerald-900">{codigo}</p>
+            <div className="grid gap-3 sm:grid-cols-3 pt-4">
+              <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">ID Orden</p>
+                <p className="text-xs font-medium text-white truncate">{codigo}</p>
               </div>
-              <div className="rounded-2xl border border-emerald-200/70 bg-white/70 px-4 py-3 text-sm">
-                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-emerald-400">Total</p>
-                <p className="mt-1 font-semibold text-emerald-900">{formatCurrency(data.total)}</p>
+              <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Inversión</p>
+                <p className="text-xs font-medium text-gold">{formatCurrency(data.total)}</p>
               </div>
-              <div className="rounded-2xl border border-emerald-200/70 bg-white/70 px-4 py-3 text-sm">
-                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-emerald-400">Fecha</p>
-                <p className="mt-1 font-semibold text-emerald-900">{fecha ?? 'Por confirmar'}</p>
+              <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                <p className="text-[8px] uppercase tracking-widest text-white/30 mb-1">Fecha</p>
+                <p className="text-xs font-medium text-white">{fecha?.split(',')[0] ?? 'Hoy'}</p>
               </div>
             </div>
           )}
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-4 pt-4">
             <button
               type="button"
               onClick={onView}
-              disabled={!onView}
-              className="flex-1 rounded-full border border-emerald-200 bg-white px-5 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={!onView || isConfirming}
+              className="w-full rounded-full border border-white/10 bg-white/5 py-4 text-[10px] font-bold uppercase tracking-widest text-white transition-all hover:bg-white/10 disabled:opacity-20"
             >
-              Ver cotización
+              Ver Detalle Técnico
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(16,185,129,0.35)] transition hover:bg-emerald-700"
+              className="w-full rounded-full bg-gold py-4 text-[10px] font-bold uppercase tracking-widest text-black shadow-2xl shadow-gold/20 hover:bg-white transition-all duration-500"
             >
-              Cerrar
+              Finalizar
             </button>
           </div>
         </div>
