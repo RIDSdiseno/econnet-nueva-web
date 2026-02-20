@@ -18,7 +18,7 @@ export interface Product {
   unit: string;
   category: string;
   sku?: string;
-  stockDisponible?: number;
+  stock: number;
   // Nuevos campos para variantes
   tieneVariantes?: boolean;
   precioPorVariante?: boolean;
@@ -34,63 +34,36 @@ export interface Product {
 
 export const products: Product[] = [
   {
-    id: '1',
-    name: 'Cemento Portland 25 kg',
-    price: 7800,
-    description: 'Resistencia confiable para fundaciones, radieres y losas.',
-    images: ['/img/products/cement.svg', '/img/products/cement-stack.svg'],
-    image: '/img/products/cement.svg',
-    unit: 'bolsa 25 kg',
-    category: 'Obra gruesa',
-  },
-  {
-    id: '2',
-    name: 'Ladrillo Fiscal',
-    price: 300,
-    description: 'Ladrillo de arcilla cocida para muros y cierres perimetrales.',
-    images: ['/img/products/brick.svg', '/img/products/brick-wall.svg'],
-    image: '/img/products/brick.svg',
+    id: 'asus-p1',
+    name: 'Asus ExpertBook P1',
+    price: 928990,
+    description: 'Rendimiento excepcional para profesionales exigentes.',
+    image: 'https://res.cloudinary.com/dvqpmttci/image/upload/v1771596327/hp-elitebook-20gb-ram-256gb-ssd-touchscreen-radeon-vega-graphics-280x280_c2sinr.webp',
     unit: 'unidad',
-    category: 'Obra gruesa',
+     stock: 1,
+    category: 'Computación Pro',
+    minQuantity: 1,
   },
   {
-    id: '3',
-    name: 'Arena Gruesa',
-    price: 25000,
-    description: 'Carga de 1 m3 para mezclas de hormigon y mortero.',
-    images: ['/img/products/sand.svg', '/img/products/sand-bucket.svg'],
-    image: '/img/products/sand.svg',
-    unit: 'm3',
-    category: 'Aridos',
-  },
-  {
-    id: '4',
-    name: 'Gravilla',
-    price: 28000,
-    description: 'Granulometria controlada para hormigones de alta resistencia.',
-    images: ['/img/products/gravel.svg', '/img/products/gravel-bucket.svg'],
-    image: '/img/products/gravel.svg',
-    unit: 'm3',
-    category: 'Aridos',
-  },
-  {
-    id: '5',
-    name: 'Malla ACMA',
-    price: 35000,
-    description: 'Malla electrosoldada para refuerzo de losas y radieres.',
-    images: ['/img/products/mesh.svg', '/img/products/mesh-roll.svg'],
-    image: '/img/products/mesh.svg',
+    id: 'macbook-2017',
+    name: 'MacBook Air 2017 Reacondicionada',
+    price: 450000, 
+    description: 'Elegancia y portabilidad con la garantía Econnet.',
+    image: 'https://res.cloudinary.com/dvqpmttci/image/upload/v1771596124/10245000018001_2-768x768_qwfobw.jpg',
+    stock: 1,
     unit: 'unidad',
-    category: 'Fierro y mallas',
+    category: 'Computación Pro',
+    minQuantity: 1,
   },
   {
-    id: '6',
-    name: 'Yeso-carton 10 mm',
-    price: 8900,
-    description: 'Plancha para tabiques interiores y cielos con terminacion lisa.',
-    images: ['/img/products/drywall.svg', '/img/products/drywall-stack.svg'],
-    image: '/img/products/drywall.svg',
-    unit: 'plancha',
-    category: 'Tabiqueria',
+    id: 'hp-elitebook-32gb',
+    name: 'HP EliteBook Touchscreen',
+    price: 850000,
+    description: 'Pantalla táctil de alta precisión, 32GB de RAM y gráficos Radeon Vega.',
+    image: 'https://res.cloudinary.com/dvqpmttci/image/upload/v1771596097/hp-elitebook-20gb-ram-256gb-ssd-touchscreen-radeon-vega-graphics-1-1-247x296_f9otoq.webp',
+    unit: 'unidad',
+     stock: 1,
+    category: 'Computación Pro',
+    minQuantity: 1,
   },
 ];

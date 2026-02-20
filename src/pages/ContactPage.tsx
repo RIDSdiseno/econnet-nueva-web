@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-// CORRECCIÓN: Importamos el nuevo nombre de la constante
+// Importación de tus datos reales
 import { econnetContact } from '../data/contact';
 
 type ContactDetail = {
@@ -55,71 +55,75 @@ const contactDetails: ContactDetail[] = [
 
 const ContactPage = () => {
   return (
-    <div className="min-h-screen bg-black text-white pt-32 pb-20 font-inter">
+    <div className="min-h-screen bg-black text-white pt-24 md:pt-32 pb-20 font-inter overflow-hidden">
       <div className="container mx-auto px-6">
         
-        {/* HEADER DE CONTACTO */}
-        <section className="mb-20">
-          <div className="relative overflow-hidden rounded-[3rem] border border-white/10 bg-white/[0.02] p-10 md:p-16 shadow-2xl backdrop-blur-md">
-            <div className="absolute -top-24 -left-24 w-96 h-96 bg-gold/5 rounded-full blur-[100px]"></div>
+        {/* HEADER DE CONTACTO - Adaptado para móviles */}
+        <section className="mb-12 md:mb-20">
+          <div className="relative overflow-hidden rounded-[2.5rem] md:rounded-[3rem] border border-white/10 bg-white/[0.02] p-8 md:p-16 shadow-2xl backdrop-blur-md">
+            <div className="absolute -top-24 -left-24 w-72 md:w-96 h-72 md:h-96 bg-gold/5 rounded-full blur-[80px] md:blur-[100px]"></div>
             <div className="relative space-y-6 max-w-3xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-gold/30 bg-gold/5 text-[10px] uppercase tracking-[0.5em] text-gold font-bold">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-gold/30 bg-gold/5 text-[9px] md:text-[10px] uppercase tracking-[0.4em] md:tracking-[0.5em] text-gold font-bold">
                 Soporte de Élite
               </div>
-              <h1 className="text-5xl md:text-7xl font-light tracking-tight italic">Conecta con <span className="text-gold font-normal">nosotros.</span></h1>
-              <p className="text-white/40 font-light text-lg leading-relaxed">
+              <h1 className="text-4xl sm:text-5xl md:text-7xl font-light tracking-tight italic leading-tight">
+                Conecta con <span className="text-gold font-normal">nosotros.</span>
+              </h1>
+              <p className="text-white/40 font-light text-base md:text-lg leading-relaxed">
                 Asesoría técnica de alta fidelidad para la gestión de proyectos tecnológicos complejos.
               </p>
             </div>
           </div>
         </section>
 
-        {/* CONTENIDO PRINCIPAL */}
-        <div className="grid gap-12 lg:grid-cols-2">
+        {/* CONTENIDO PRINCIPAL - Grid adaptable */}
+        <div className="grid gap-8 md:gap-12 lg:grid-cols-2">
           
-          <div className="space-y-8 p-10 rounded-[3rem] border border-white/5 bg-white/[0.01]">
-            <h2 className="text-[10px] uppercase tracking-[0.4em] text-gold font-black">Oficial</h2>
+          <div className="space-y-6 md:space-y-8 p-6 md:p-10 rounded-[2.5rem] md:rounded-[3rem] border border-white/5 bg-white/[0.01]">
+            <h2 className="text-[10px] uppercase tracking-[0.4em] text-gold font-black ml-2">Oficial</h2>
             <div className="grid gap-4">
               {contactDetails.map((detail) => (
-                <div key={detail.label} className="group flex items-center gap-6 p-6 rounded-[2rem] border border-white/5 bg-white/[0.02] hover:border-gold/30 transition-all duration-500">
-                  <span className="h-12 w-12 flex items-center justify-center rounded-full bg-white/5 text-gold group-hover:bg-gold group-hover:text-black transition-all">
+                <div key={detail.label} className="group flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 p-5 sm:p-6 rounded-[1.5rem] md:rounded-[2rem] border border-white/5 bg-white/[0.02] hover:border-gold/30 transition-all duration-500">
+                  <span className="h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-full bg-white/5 text-gold group-hover:bg-gold group-hover:text-black transition-all">
                     {detail.icon}
                   </span>
-                  <div>
-                    <p className="text-[9px] uppercase tracking-widest text-white/30 mb-1">{detail.label}</p>
+                  <div className="w-full overflow-hidden">
+                    <p className="text-[8px] sm:text-[9px] uppercase tracking-widest text-white/30 mb-1">{detail.label}</p>
                     {detail.href ? (
-                      <a href={detail.href} className="text-lg font-light hover:text-gold transition-colors">{detail.value}</a>
+                      <a href={detail.href} className="text-base sm:text-lg font-light hover:text-gold transition-colors break-words">
+                        {detail.value}
+                      </a>
                     ) : (
-                      <p className="text-lg font-light">{detail.value}</p>
+                      <p className="text-base sm:text-lg font-light break-words">{detail.value}</p>
                     )}
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="p-8 rounded-[2rem] border border-white/5 bg-white/[0.03] space-y-6">
-              <p className="text-sm text-white/40 font-light italic">Visitas presenciales solo mediante agendamiento previo en nuestro centro de operaciones.</p>
-              <a href={econnetContact.mapsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center px-8 py-4 rounded-full bg-white text-black font-bold text-[10px] tracking-widest hover:bg-gold transition-all duration-500">
+            <div className="p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border border-white/5 bg-white/[0.03] space-y-6">
+              <p className="text-xs md:text-sm text-white/40 font-light italic">Visitas presenciales solo mediante agendamiento previo en nuestro centro de operaciones.</p>
+              <a href={econnetContact.mapsUrl} target="_blank" rel="noreferrer" className="inline-flex w-full sm:w-auto justify-center items-center px-8 py-4 rounded-full bg-white text-black font-bold text-[10px] tracking-widest hover:bg-gold transition-all duration-500">
                 VER UBICACIÓN
               </a>
             </div>
           </div>
 
-          {/* PANEL DE PROYECTOS */}
-          <div className="space-y-8 p-10 rounded-[3rem] border border-gold/10 bg-gradient-to-b from-gold/[0.03] to-transparent">
-            <h3 className="text-[10px] uppercase tracking-[0.4em] text-gold font-black">Ecosistema B2B</h3>
-            <div className="space-y-4">
-              <div className="p-8 rounded-[2rem] border border-white/5 bg-white/[0.02]">
+          {/* PANEL DE PROYECTOS / B2B */}
+          <div className="space-y-6 md:space-y-8 p-6 md:p-10 rounded-[2.5rem] md:rounded-[3rem] border border-gold/10 bg-gradient-to-b from-gold/[0.03] to-transparent">
+            <h3 className="text-[10px] uppercase tracking-[0.4em] text-gold font-black ml-2">Ecosistema B2B</h3>
+            <div className="space-y-4 md:space-y-6">
+              <div className="p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border border-white/5 bg-white/[0.02]">
                 <p className="text-[10px] uppercase tracking-widest text-white/30 mb-3">Horario Corporativo</p>
                 <p className="text-base font-light italic text-gold">Lunes a Viernes, 09:00 - 18:00 hrs.</p>
               </div>
 
-              <div className="p-10 rounded-[2.5rem] bg-gold text-black space-y-6 shadow-3xl shadow-gold/20">
+              <div className="p-8 md:p-10 rounded-[2rem] md:rounded-[2.5rem] bg-gold text-black space-y-6 shadow-2xl shadow-gold/10">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em]">Configuración de Hardware</p>
                 <p className="text-sm font-medium leading-relaxed">
                   Para presupuestos detallados de infraestructura o compras por volumen, inicia una propuesta técnica formal.
                 </p>
-                <Link to="/cotizar" className="inline-block px-10 py-4 rounded-full bg-black text-white font-bold text-[10px] tracking-widest hover:bg-white hover:text-black transition-all duration-500">
+                <Link to="/cotizar" className="inline-block w-full text-center px-10 py-4 rounded-full bg-black text-white font-bold text-[10px] tracking-widest hover:bg-white hover:text-black transition-all duration-500">
                   INICIAR COTIZACIÓN
                 </Link>
               </div>

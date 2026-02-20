@@ -9,7 +9,7 @@ type RespuestaApi<T> = {
 };
 
 const API_ORIGIN_ENV =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? 'https://covasabackecomerce-production.up.railway.app';
+  (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3001/api';
 const API_ORIGIN = API_ORIGIN_ENV.replace(/\/api\/?$/, '').replace(/\/$/, '');
 export const API_BASE_URL = `${API_ORIGIN}/api`;
 
@@ -187,7 +187,7 @@ const mapearProducto = (producto: ProductoCatalogo): Product => {
     unit: producto.unidad || producto.unidadMedida || 'unidad',
     category: producto.categoria?.nombre || producto.tipo || 'Producto',
     sku: producto.sku ?? undefined,
-    stockDisponible: producto.stockDisponible,
+    stock: producto.stockDisponible ?? 0,
     // Nuevos campos para variantes
     tieneVariantes: producto.tieneVariantes,
     precioPorVariante: producto.precioPorVariante,
