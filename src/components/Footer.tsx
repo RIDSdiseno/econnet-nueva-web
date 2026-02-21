@@ -33,7 +33,7 @@ const Footer = () => {
               <h4 className="text-gold text-[10px] uppercase tracking-[0.5em] font-bold">Soporte</h4>
               <ul className="space-y-4">
                 <li><Link to="/contact" className="text-white/40 hover:text-white text-[11px] uppercase tracking-widest transition-colors">Contacto</Link></li>
-                <li><Link to="/terms" className="text-white/40 hover:text-white text-[11px] uppercase tracking-widest transition-colors">Garantía</Link></li>
+                <li><Link to="/garantia" className="text-white/40 hover:text-white text-[11px] uppercase tracking-widest transition-colors">Garantía</Link></li>
               </ul>
             </div>
           </div>
@@ -48,18 +48,50 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* LÍNEA FINAL */}
-        <div className="pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+        {/* LÍNEA FINAL CON REDES SOCIALES */}
+        <div className="pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
           <p className="text-white/20 text-[9px] uppercase tracking-[0.4em]">
             © {currentYear} Econnet Chile.
           </p>
           
-          <div className="flex gap-8">
-            <a href="#" className="text-white/20 hover:text-gold transition-colors">
-              <span className="text-[9px] uppercase tracking-[0.4em]">Instagram</span>
+          {/* BOTONES REDES SOCIALES */}
+          <div className="flex items-center gap-5">
+            {/* INSTAGRAM */}
+            <a 
+              href="https://instagram.com/econnet.cl" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="group flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-all duration-500 hover:border-gold hover:bg-gold/10"
+            >
+              <svg className="h-4 w-4 text-white/40 group-hover:text-gold transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+              </svg>
             </a>
-            <a href="#" className="text-white/20 hover:text-gold transition-colors">
-              <span className="text-[9px] uppercase tracking-[0.4em]">LinkedIn</span>
+
+            {/* LINKEDIN */}
+            <a 
+              href="https://cl.linkedin.com/in/asesorías-rids-ltda-348522107" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="group flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-all duration-500 hover:border-gold hover:bg-gold/10"
+            >
+              <svg className="h-4 w-4 text-white/40 group-hover:text-gold transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
+                <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                <rect x="2" y="9" width="4" height="12"></rect>
+                <circle cx="4" cy="4" r="2"></circle>
+              </svg>
+            </a>
+
+            {/* CORREO */}
+            <a 
+              href="mailto:soporte@rids.cl" 
+              className="group flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-all duration-500 hover:border-gold hover:bg-gold/10"
+            >
+              <svg className="h-4 w-4 text-white/40 group-hover:text-gold transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
+                <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+              </svg>
             </a>
           </div>
         </div>

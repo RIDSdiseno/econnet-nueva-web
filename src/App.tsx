@@ -6,6 +6,7 @@ import ProductsPage from './pages/ProductsPage';
 import ContactPage from './pages/ContactPage';
 import CartPage from './pages/CartPage';
 import QuotePage from './pages/QuotePage';
+import Garantia from './pages/Garantia';
 import MyQuotesPage from './pages/MyQuotesPage';
 import QuoteDetailPage from './pages/QuoteDetailPage';
 import MyPaymentsPage from './pages/MyPaymentsPage';
@@ -16,6 +17,7 @@ import TransbankReturnPage from './pages/TransbankReturnPage';
 import StripeReturnPage from './pages/StripeReturnPage';
 import NosotrosPage from './pages/NosotrosPage';
 import MicrosoftCallbackPage from './pages/MicrosoftCallbackPage';
+import WhatsAppButton from './components/WhatsAppButton'; 
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import { QuoteHistoryProvider } from './context/QuoteHistoryContext';
@@ -35,6 +37,7 @@ const AppLayout = () => {
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/nosotros" element={<NosotrosPage />} />
             <Route path="/cotizar" element={<QuotePage />} />
+            <Route path="/garantia" element={<Garantia />} />
             <Route path="/mis-cotizaciones" element={<MyQuotesPage />} />
             <Route path="/mis-cotizaciones/:id" element={<QuoteDetailPage />} />
             <Route path="/mis-pagos" element={<MyPaymentsPage />} />
@@ -46,11 +49,13 @@ const AppLayout = () => {
             <Route path="/pago/mercadopago/:resultado" element={<MercadoPagoReturnPage />} />
             <Route path="/pago/transbank" element={<TransbankReturnPage />} />
             <Route path="/pago/stripe/:resultado" element={<StripeReturnPage />} />
-            {/* Add other routes here later */}
           </Routes>
         </div>
       </main>
       <Footer />
+      
+      {/* EL BOTÓN DEBE IR AQUÍ: Fuera del main pero dentro del shell */}
+      <WhatsAppButton />
     </div>
   );
 };
@@ -72,4 +77,3 @@ function App() {
 }
 
 export default App;
-  
